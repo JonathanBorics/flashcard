@@ -12,6 +12,7 @@ import {
   CircularProgress,
   Alert,
   Chip,
+  Divider,
 } from "@mui/material";
 import {
   VolumeUp,
@@ -32,11 +33,15 @@ import {
 } from "../../utils/api";
 
 export default function Flashcards() {
-  const [currentWord, setCurrentWord] = useState(null);
+  const [currentWord, setCurrentWord] = useState({
+    english: "",
+    hungarian: [],
+    synonyms: [],
+  });
   const [isFlipped, setIsFlipped] = useState(false);
   const [wordsLearned, setWordsLearned] = useState(0);
   const [usedWords, setUsedWords] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [wordSource, setWordSource] = useState(WORD_SOURCES.FREQUENCY);
   const [cefrLevel, setCefrLevel] = useState("ALL");
@@ -322,7 +327,7 @@ export default function Flashcards() {
                     component="div"
                     color="text.secondary"
                     gutterBottom
-                    sx={{ mb: 3 }}
+                    sx={{ mb: 2 }}
                   >
                     {currentWord.english}
                   </Typography>
@@ -343,6 +348,20 @@ export default function Flashcards() {
                       </Typography>
                     ))}
 
+                  {currentWord.synonyms && currentWord.synonyms.length > 0 && (
+                    <Box sx={{ mt: 3, width: "100%" }}>
+                      <Divider sx={{ mb: 2 }}>
+                        <Chip label="Hasonló jelentések" size="small" />
+                      </Divider>
+                      <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        sx={{ fontStyle: "italic" }}
+                      >
+                        {currentWord.synonyms.join(", ")}
+                      </Typography>
+                    </Box>
+                  )}
                   <Typography
                     variant="body1"
                     color="text.secondary"

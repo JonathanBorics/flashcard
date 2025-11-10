@@ -39,9 +39,7 @@ __turbopack_context__.s([
     "setCurrentFrequencyLevel",
     ()=>setCurrentFrequencyLevel,
     "setCurrentSource",
-    ()=>setCurrentSource,
-    "translateWord",
-    ()=>translateWord
+    ()=>setCurrentSource
 ]);
 const WORD_SOURCES = {
     FREQUENCY: "frequency",
@@ -93,7 +91,7 @@ function setCurrentFrequencyLevel(level) {
     ;
 }
 // ====================================
-// FREQUENCY CSV FUNCTIONS (172k szó)
+// FREQUENCY CSV FUNCTIONS
 // ====================================
 let frequencyData = null;
 async function loadFrequency() {
@@ -114,27 +112,21 @@ async function loadFrequency() {
                 word,
                 frequency: frequency || 0
             };
-        }).filter((item)=>item && item.word);
-        console.log(`📊 Frequency betöltve: ${frequencyData.length} szó`);
+        }).filter(Boolean);
         return frequencyData;
     } catch (error) {
-        console.error("❌ Frequency betöltési hiba:", error);
         return [];
     }
 }
 async function getRandomFrequencyWord(level = FREQUENCY_LEVELS.TOP_10K) {
     await loadFrequency();
-    if (!frequencyData || frequencyData.length === 0) {
-        throw new Error("Frequency lista nem elérhető");
-    }
+    if (!frequencyData || frequencyData.length === 0) throw new Error("Frequency lista nem elérhető");
     let filteredWords = frequencyData;
     if (level !== FREQUENCY_LEVELS.ALL) {
         const maxRank = parseInt(level);
         filteredWords = frequencyData.filter((item)=>item.rank <= maxRank);
     }
-    if (filteredWords.length === 0) {
-        throw new Error(`Nincs szó a(z) ${level} szinten`);
-    }
+    if (filteredWords.length === 0) throw new Error(`Nincs szó a(z) ${level} szinten`);
     const randomIndex = Math.floor(Math.random() * filteredWords.length);
     const wordData = filteredWords[randomIndex];
     return {
@@ -159,14 +151,12 @@ function getFrequencyWordCount(level = FREQUENCY_LEVELS.TOP_10K) {
                 return 10000;
         }
     }
-    if (level === FREQUENCY_LEVELS.ALL) {
-        return frequencyData.length;
-    }
+    if (level === FREQUENCY_LEVELS.ALL) return frequencyData.length;
     const maxRank = parseInt(level);
     return frequencyData.filter((item)=>item.rank <= maxRank).length;
 }
 // ====================================
-// CSV CEFR FUNCTIONS (7989 szó)
+// CSV CEFR FUNCTIONS
 // ====================================
 let cefrData = null;
 async function loadCEFR() {
@@ -184,25 +174,19 @@ async function loadCEFR() {
                 cefr: parts[2]?.trim()
             };
         }).filter((item)=>item && item.word && item.cefr);
-        console.log(`📚 CEFR betöltve: ${cefrData.length} szó`);
         return cefrData;
     } catch (error) {
-        console.error("❌ CEFR betöltési hiba:", error);
         return [];
     }
 }
 async function getRandomCEFRWord(level = CEFR_LEVELS.ALL) {
     await loadCEFR();
-    if (!cefrData || cefrData.length === 0) {
-        throw new Error("CEFR lista nem elérhető");
-    }
+    if (!cefrData || cefrData.length === 0) throw new Error("CEFR lista nem elérhető");
     let filteredWords = cefrData;
     if (level !== CEFR_LEVELS.ALL) {
         filteredWords = cefrData.filter((item)=>item.cefr === level);
     }
-    if (filteredWords.length === 0) {
-        throw new Error(`Nincs szó a(z) ${level} szinten`);
-    }
+    if (filteredWords.length === 0) throw new Error(`Nincs szó a(z) ${level} szinten`);
     const randomIndex = Math.floor(Math.random() * filteredWords.length);
     const wordData = filteredWords[randomIndex];
     return {
@@ -213,71 +197,47 @@ async function getRandomCEFRWord(level = CEFR_LEVELS.ALL) {
     };
 }
 function getCEFRWordCount(level = CEFR_LEVELS.ALL) {
-    if (!cefrData) return 7989;
-    if (level === CEFR_LEVELS.ALL) {
-        return cefrData.length;
+    if (!cefrData) {
+        // Becslés, ha a lista még nincs betöltve
+        return 7989;
     }
+    if (level === CEFR_LEVELS.ALL) return cefrData.length;
     return cefrData.filter((item)=>item.cefr === level).length;
-}
-async function translateWord(englishWord) {
-    console.log(`🔍 Fordítás kérése a belső API-tól: ${englishWord}`);
-    try {
-        const response = await fetch(`/api/translate?word=${encodeURIComponent(englishWord)}`);
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || `API hiba: ${response.statusText}`);
-        }
-        const data = await response.json();
-        const hungarianMeanings = data.translation;
-        if (!hungarianMeanings || hungarianMeanings.length === 0) {
-            return [
-                "Nincs fordítás"
-            ];
-        }
-        console.log(`✅ Sikeres fordítás:`, hungarianMeanings);
-        return hungarianMeanings;
-    } catch (error) {
-        console.error("❌ Hiba a belső fordítási API hívásakor:", error);
-        return [
-            "Fordítási hiba"
-        ];
-    }
 }
 async function getRandomWord() {
     const source = getCurrentSource();
     const cefrLevel = getCurrentCEFRLevel();
     const frequencyLevel = getCurrentFrequencyLevel();
-    console.log("🎲 Random szó kérés:", {
-        source,
-        cefrLevel,
-        frequencyLevel
-    });
     let wordData;
     if (source === WORD_SOURCES.FREQUENCY) {
         wordData = await getRandomFrequencyWord(frequencyLevel);
     } else {
         wordData = await getRandomCEFRWord(cefrLevel);
     }
-    console.log("📝 Angol szó:", wordData.english);
     const cached = getCachedTranslation(wordData.english);
     if (cached) {
-        console.log("📦 Cache találat!");
         return {
             ...wordData,
             hungarian: cached.hungarian,
+            synonyms: cached.synonyms || [],
             cached: true
         };
     }
-    console.log("🌐 Nincs cache, API fordítás szükséges...");
-    const hungarian = await translateWord(wordData.english);
+    const response = await fetch(`/api/translate?word=${encodeURIComponent(wordData.english)}`);
+    if (!response.ok) {
+        throw new Error("Fordítási API hiba");
+    }
+    const translationData = await response.json();
     const result = {
         ...wordData,
-        hungarian,
+        hungarian: translationData.translation,
+        synonyms: translationData.synonyms,
         cached: false
     };
-    console.log("💾 Cache mentés:", wordData.english);
-    setCachedTranslation(wordData.english, result);
-    console.log("🎉 Teljes eredmény:", result);
+    setCachedTranslation(wordData.english, {
+        hungarian: result.hungarian,
+        synonyms: result.synonyms
+    });
     return result;
 }
 function getTotalWordsCount() {
@@ -295,7 +255,7 @@ function getCachedTranslation(word) {
     //TURBOPACK unreachable
     ;
 }
-function setCachedTranslation(word, translation) {
+function setCachedTranslation(word, translationWithSynonyms) {
     if ("TURBOPACK compile-time truthy", 1) return;
     //TURBOPACK unreachable
     ;
@@ -304,6 +264,7 @@ function clearCache() {
     if ("TURBOPACK compile-time truthy", 1) return 0;
     //TURBOPACK unreachable
     ;
+    let count;
 }
 }),
 "[project]/app/flashcards/page.js [app-ssr] (ecmascript)", ((__turbopack_context__) => {
@@ -325,6 +286,7 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$mat
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$CircularProgress$2f$CircularProgress$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__CircularProgress$3e$__ = __turbopack_context__.i("[project]/node_modules/@mui/material/esm/CircularProgress/CircularProgress.js [app-ssr] (ecmascript) <export default as CircularProgress>");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Alert$2f$Alert$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Alert$3e$__ = __turbopack_context__.i("[project]/node_modules/@mui/material/esm/Alert/Alert.js [app-ssr] (ecmascript) <export default as Alert>");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Chip$2f$Chip$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Chip$3e$__ = __turbopack_context__.i("[project]/node_modules/@mui/material/esm/Chip/Chip.js [app-ssr] (ecmascript) <export default as Chip>");
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Divider$2f$Divider$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Divider$3e$__ = __turbopack_context__.i("[project]/node_modules/@mui/material/esm/Divider/Divider.js [app-ssr] (ecmascript) <export default as Divider>");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$icons$2d$material$2f$esm$2f$VolumeUp$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/@mui/icons-material/esm/VolumeUp.js [app-ssr] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$icons$2d$material$2f$esm$2f$NavigateNext$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/@mui/icons-material/esm/NavigateNext.js [app-ssr] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$icons$2d$material$2f$esm$2f$Home$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/@mui/icons-material/esm/Home.js [app-ssr] (ecmascript)");
@@ -346,11 +308,15 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$utils$2f$api$2e$js__$5b$app$
 ;
 ;
 function Flashcards() {
-    const [currentWord, setCurrentWord] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])(null);
+    const [currentWord, setCurrentWord] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])({
+        english: "",
+        hungarian: [],
+        synonyms: []
+    });
     const [isFlipped, setIsFlipped] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])(false);
     const [wordsLearned, setWordsLearned] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])(0);
     const [usedWords, setUsedWords] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])([]);
-    const [loading, setLoading] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])(false);
+    const [loading, setLoading] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])(true);
     const [error, setError] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])(null);
     const [wordSource, setWordSource] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])(__TURBOPACK__imported__module__$5b$project$5d2f$utils$2f$api$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["WORD_SOURCES"].FREQUENCY);
     const [cefrLevel, setCefrLevel] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])("ALL");
@@ -467,17 +433,17 @@ function Flashcards() {
                                 color: "primary",
                                 children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$icons$2d$material$2f$esm$2f$Home$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["default"], {}, void 0, false, {
                                     fileName: "[project]/app/flashcards/page.js",
-                                    lineNumber: 167,
+                                    lineNumber: 172,
                                     columnNumber: 15
                                 }, this)
                             }, void 0, false, {
                                 fileName: "[project]/app/flashcards/page.js",
-                                lineNumber: 166,
+                                lineNumber: 171,
                                 columnNumber: 13
                             }, this)
                         }, void 0, false, {
                             fileName: "[project]/app/flashcards/page.js",
-                            lineNumber: 165,
+                            lineNumber: 170,
                             columnNumber: 11
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Box$2f$Box$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Box$3e$__["Box"], {
@@ -497,13 +463,13 @@ function Flashcards() {
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/app/flashcards/page.js",
-                                    lineNumber: 172,
+                                    lineNumber: 177,
                                     columnNumber: 13
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Chip$2f$Chip$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Chip$3e$__["Chip"], {
                                     icon: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$icons$2d$material$2f$esm$2f$CloudDownload$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["default"], {}, void 0, false, {
                                         fileName: "[project]/app/flashcards/page.js",
-                                        lineNumber: 176,
+                                        lineNumber: 181,
                                         columnNumber: 21
                                     }, void 0),
                                     label: "API",
@@ -512,13 +478,13 @@ function Flashcards() {
                                     variant: "outlined"
                                 }, void 0, false, {
                                     fileName: "[project]/app/flashcards/page.js",
-                                    lineNumber: 175,
+                                    lineNumber: 180,
                                     columnNumber: 13
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/app/flashcards/page.js",
-                            lineNumber: 171,
+                            lineNumber: 176,
                             columnNumber: 11
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Box$2f$Box$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Box$3e$__["Box"], {
@@ -534,23 +500,10 @@ function Flashcards() {
                                         color: "primary",
                                         children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$icons$2d$material$2f$esm$2f$Settings$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["default"], {}, void 0, false, {
                                             fileName: "[project]/app/flashcards/page.js",
-                                            lineNumber: 187,
+                                            lineNumber: 192,
                                             columnNumber: 17
                                         }, this)
                                     }, void 0, false, {
-                                        fileName: "[project]/app/flashcards/page.js",
-                                        lineNumber: 186,
-                                        columnNumber: 15
-                                    }, this)
-                                }, void 0, false, {
-                                    fileName: "[project]/app/flashcards/page.js",
-                                    lineNumber: 185,
-                                    columnNumber: 13
-                                }, this),
-                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$IconButton$2f$IconButton$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__IconButton$3e$__["IconButton"], {
-                                    color: "primary",
-                                    onClick: handleRestart,
-                                    children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$icons$2d$material$2f$esm$2f$Refresh$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["default"], {}, void 0, false, {
                                         fileName: "[project]/app/flashcards/page.js",
                                         lineNumber: 191,
                                         columnNumber: 15
@@ -559,17 +512,30 @@ function Flashcards() {
                                     fileName: "[project]/app/flashcards/page.js",
                                     lineNumber: 190,
                                     columnNumber: 13
+                                }, this),
+                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$IconButton$2f$IconButton$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__IconButton$3e$__["IconButton"], {
+                                    color: "primary",
+                                    onClick: handleRestart,
+                                    children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$icons$2d$material$2f$esm$2f$Refresh$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["default"], {}, void 0, false, {
+                                        fileName: "[project]/app/flashcards/page.js",
+                                        lineNumber: 196,
+                                        columnNumber: 15
+                                    }, this)
+                                }, void 0, false, {
+                                    fileName: "[project]/app/flashcards/page.js",
+                                    lineNumber: 195,
+                                    columnNumber: 13
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/app/flashcards/page.js",
-                            lineNumber: 184,
+                            lineNumber: 189,
                             columnNumber: 11
                         }, this)
                     ]
                 }, void 0, true, {
                     fileName: "[project]/app/flashcards/page.js",
-                    lineNumber: 157,
+                    lineNumber: 162,
                     columnNumber: 9
                 }, this),
                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$LinearProgress$2f$LinearProgress$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__LinearProgress$3e$__["LinearProgress"], {
@@ -582,7 +548,7 @@ function Flashcards() {
                     }
                 }, void 0, false, {
                     fileName: "[project]/app/flashcards/page.js",
-                    lineNumber: 197,
+                    lineNumber: 202,
                     columnNumber: 9
                 }, this),
                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Box$2f$Box$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Box$3e$__["Box"], {
@@ -599,7 +565,7 @@ function Flashcards() {
                             size: "small"
                         }, void 0, false, {
                             fileName: "[project]/app/flashcards/page.js",
-                            lineNumber: 205,
+                            lineNumber: 210,
                             columnNumber: 11
                         }, this),
                         currentWord?.cached && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Chip$2f$Chip$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Chip$3e$__["Chip"], {
@@ -608,13 +574,13 @@ function Flashcards() {
                             variant: "outlined"
                         }, void 0, false, {
                             fileName: "[project]/app/flashcards/page.js",
-                            lineNumber: 207,
+                            lineNumber: 212,
                             columnNumber: 13
                         }, this)
                     ]
                 }, void 0, true, {
                     fileName: "[project]/app/flashcards/page.js",
-                    lineNumber: 204,
+                    lineNumber: 209,
                     columnNumber: 9
                 }, this),
                 error && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Alert$2f$Alert$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Alert$3e$__["Alert"], {
@@ -626,7 +592,7 @@ function Flashcards() {
                     children: error
                 }, void 0, false, {
                     fileName: "[project]/app/flashcards/page.js",
-                    lineNumber: 213,
+                    lineNumber: 218,
                     columnNumber: 11
                 }, this),
                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Paper$2f$Paper$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Paper$3e$__["Paper"], {
@@ -663,7 +629,7 @@ function Flashcards() {
                                 }
                             }, void 0, false, {
                                 fileName: "[project]/app/flashcards/page.js",
-                                lineNumber: 244,
+                                lineNumber: 249,
                                 columnNumber: 15
                             }, this),
                             /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Typography$2f$Typography$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Typography$3e$__["Typography"], {
@@ -672,13 +638,13 @@ function Flashcards() {
                                 children: "Szó betöltése..."
                             }, void 0, false, {
                                 fileName: "[project]/app/flashcards/page.js",
-                                lineNumber: 245,
+                                lineNumber: 250,
                                 columnNumber: 15
                             }, this)
                         ]
                     }, void 0, true, {
                         fileName: "[project]/app/flashcards/page.js",
-                        lineNumber: 243,
+                        lineNumber: 248,
                         columnNumber: 13
                     }, this) : currentWord ? /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Box$2f$Box$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Box$3e$__["Box"], {
                         sx: {
@@ -702,7 +668,7 @@ function Flashcards() {
                                     children: currentWord.english
                                 }, void 0, false, {
                                     fileName: "[project]/app/flashcards/page.js",
-                                    lineNumber: 261,
+                                    lineNumber: 266,
                                     columnNumber: 19
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Box$2f$Box$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Box$3e$__["Box"], {
@@ -719,7 +685,7 @@ function Flashcards() {
                                             size: "small"
                                         }, void 0, false, {
                                             fileName: "[project]/app/flashcards/page.js",
-                                            lineNumber: 282,
+                                            lineNumber: 287,
                                             columnNumber: 23
                                         }, this),
                                         currentWord.cefr && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Chip$2f$Chip$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Chip$3e$__["Chip"], {
@@ -728,13 +694,13 @@ function Flashcards() {
                                             size: "small"
                                         }, void 0, false, {
                                             fileName: "[project]/app/flashcards/page.js",
-                                            lineNumber: 291,
+                                            lineNumber: 296,
                                             columnNumber: 23
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/app/flashcards/page.js",
-                                    lineNumber: 272,
+                                    lineNumber: 277,
                                     columnNumber: 19
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Typography$2f$Typography$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Typography$3e$__["Typography"], {
@@ -743,7 +709,7 @@ function Flashcards() {
                                     children: "Kattints a megfordításhoz"
                                 }, void 0, false, {
                                     fileName: "[project]/app/flashcards/page.js",
-                                    lineNumber: 301,
+                                    lineNumber: 306,
                                     columnNumber: 19
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$IconButton$2f$IconButton$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__IconButton$3e$__["IconButton"], {
@@ -760,12 +726,12 @@ function Flashcards() {
                                         fontSize: "large"
                                     }, void 0, false, {
                                         fileName: "[project]/app/flashcards/page.js",
-                                        lineNumber: 314,
+                                        lineNumber: 319,
                                         columnNumber: 21
                                     }, this)
                                 }, void 0, false, {
                                     fileName: "[project]/app/flashcards/page.js",
-                                    lineNumber: 305,
+                                    lineNumber: 310,
                                     columnNumber: 19
                                 }, this)
                             ]
@@ -778,12 +744,12 @@ function Flashcards() {
                                     color: "text.secondary",
                                     gutterBottom: true,
                                     sx: {
-                                        mb: 3
+                                        mb: 2
                                     },
                                     children: currentWord.english
                                 }, void 0, false, {
                                     fileName: "[project]/app/flashcards/page.js",
-                                    lineNumber: 320,
+                                    lineNumber: 325,
                                     columnNumber: 19
                                 }, this),
                                 currentWord.hungarian && currentWord.hungarian.map((meaning, index)=>/*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Typography$2f$Typography$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Typography$3e$__["Typography"], {
@@ -798,9 +764,50 @@ function Flashcards() {
                                         children: meaning
                                     }, index, false, {
                                         fileName: "[project]/app/flashcards/page.js",
-                                        lineNumber: 332,
+                                        lineNumber: 337,
                                         columnNumber: 23
                                     }, this)),
+                                currentWord.synonyms && currentWord.synonyms.length > 0 && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Box$2f$Box$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Box$3e$__["Box"], {
+                                    sx: {
+                                        mt: 3,
+                                        width: "100%"
+                                    },
+                                    children: [
+                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Divider$2f$Divider$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Divider$3e$__["Divider"], {
+                                            sx: {
+                                                mb: 2
+                                            },
+                                            children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Chip$2f$Chip$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Chip$3e$__["Chip"], {
+                                                label: "Hasonló jelentések",
+                                                size: "small"
+                                            }, void 0, false, {
+                                                fileName: "[project]/app/flashcards/page.js",
+                                                lineNumber: 354,
+                                                columnNumber: 25
+                                            }, this)
+                                        }, void 0, false, {
+                                            fileName: "[project]/app/flashcards/page.js",
+                                            lineNumber: 353,
+                                            columnNumber: 23
+                                        }, this),
+                                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Typography$2f$Typography$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Typography$3e$__["Typography"], {
+                                            variant: "body2",
+                                            color: "text.secondary",
+                                            sx: {
+                                                fontStyle: "italic"
+                                            },
+                                            children: currentWord.synonyms.join(", ")
+                                        }, void 0, false, {
+                                            fileName: "[project]/app/flashcards/page.js",
+                                            lineNumber: 356,
+                                            columnNumber: 23
+                                        }, this)
+                                    ]
+                                }, void 0, true, {
+                                    fileName: "[project]/app/flashcards/page.js",
+                                    lineNumber: 352,
+                                    columnNumber: 21
+                                }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Typography$2f$Typography$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Typography$3e$__["Typography"], {
                                     variant: "body1",
                                     color: "text.secondary",
@@ -810,14 +817,14 @@ function Flashcards() {
                                     children: "Kattints újra az angol szóhoz"
                                 }, void 0, false, {
                                     fileName: "[project]/app/flashcards/page.js",
-                                    lineNumber: 346,
+                                    lineNumber: 365,
                                     columnNumber: 19
                                 }, this)
                             ]
                         }, void 0, true)
                     }, void 0, false, {
                         fileName: "[project]/app/flashcards/page.js",
-                        lineNumber: 250,
+                        lineNumber: 255,
                         columnNumber: 13
                     }, this) : // Hiba állapot
                     /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Typography$2f$Typography$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Typography$3e$__["Typography"], {
@@ -826,12 +833,12 @@ function Flashcards() {
                         children: "Nem sikerült betölteni a szót"
                     }, void 0, false, {
                         fileName: "[project]/app/flashcards/page.js",
-                        lineNumber: 358,
+                        lineNumber: 377,
                         columnNumber: 13
                     }, this)
                 }, void 0, false, {
                     fileName: "[project]/app/flashcards/page.js",
-                    lineNumber: 219,
+                    lineNumber: 224,
                     columnNumber: 9
                 }, this),
                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Button$2f$Button$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Button$3e$__["Button"], {
@@ -839,7 +846,7 @@ function Flashcards() {
                     size: "large",
                     endIcon: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$icons$2d$material$2f$esm$2f$NavigateNext$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["default"], {}, void 0, false, {
                         fileName: "[project]/app/flashcards/page.js",
-                        lineNumber: 368,
+                        lineNumber: 387,
                         columnNumber: 20
                     }, void 0),
                     onClick: handleNext,
@@ -854,7 +861,7 @@ function Flashcards() {
                     children: loading ? "Betöltés..." : "Következő szó"
                 }, void 0, false, {
                     fileName: "[project]/app/flashcards/page.js",
-                    lineNumber: 365,
+                    lineNumber: 384,
                     columnNumber: 9
                 }, this),
                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Box$2f$Box$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Box$3e$__["Box"], {
@@ -872,7 +879,7 @@ function Flashcards() {
                             children: "💡 Kattints a kártyára a magyar jelentés megtekintéséhez"
                         }, void 0, false, {
                             fileName: "[project]/app/flashcards/page.js",
-                            lineNumber: 384,
+                            lineNumber: 403,
                             columnNumber: 11
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Typography$2f$Typography$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Typography$3e$__["Typography"], {
@@ -881,24 +888,24 @@ function Flashcards() {
                             children: "🎯 Beállítások → Válaszd ki a nehézségi szintet"
                         }, void 0, false, {
                             fileName: "[project]/app/flashcards/page.js",
-                            lineNumber: 388,
+                            lineNumber: 407,
                             columnNumber: 11
                         }, this)
                     ]
                 }, void 0, true, {
                     fileName: "[project]/app/flashcards/page.js",
-                    lineNumber: 383,
+                    lineNumber: 402,
                     columnNumber: 9
                 }, this)
             ]
         }, void 0, true, {
             fileName: "[project]/app/flashcards/page.js",
-            lineNumber: 147,
+            lineNumber: 152,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "[project]/app/flashcards/page.js",
-        lineNumber: 146,
+        lineNumber: 151,
         columnNumber: 5
     }, this);
 }

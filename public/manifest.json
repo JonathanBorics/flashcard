@@ -1,12 +1,12 @@
 {
+  "theme_color": "#1976d2",
+  "background_color": "#ffffff",
+  "display": "standalone",
+  "scope": "/",
+  "start_url": "/",
   "name": "Angol Tanuló Flashcard",
   "short_name": "AngolTanuló",
   "description": "Tanulj angolul flashcard játékkal",
-  "start_url": "/",
-  "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#1976d2",
-  "orientation": "portrait",
   "icons": [
     {
       "src": "/icon-192x192.png",

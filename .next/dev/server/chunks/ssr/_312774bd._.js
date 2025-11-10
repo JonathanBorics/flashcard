@@ -39,9 +39,7 @@ __turbopack_context__.s([
     "setCurrentFrequencyLevel",
     ()=>setCurrentFrequencyLevel,
     "setCurrentSource",
-    ()=>setCurrentSource,
-    "translateWord",
-    ()=>translateWord
+    ()=>setCurrentSource
 ]);
 const WORD_SOURCES = {
     FREQUENCY: "frequency",
@@ -93,7 +91,7 @@ function setCurrentFrequencyLevel(level) {
     ;
 }
 // ====================================
-// FREQUENCY CSV FUNCTIONS (172k szó)
+// FREQUENCY CSV FUNCTIONS
 // ====================================
 let frequencyData = null;
 async function loadFrequency() {
@@ -114,27 +112,21 @@ async function loadFrequency() {
                 word,
                 frequency: frequency || 0
             };
-        }).filter((item)=>item && item.word);
-        console.log(`📊 Frequency betöltve: ${frequencyData.length} szó`);
+        }).filter(Boolean);
         return frequencyData;
     } catch (error) {
-        console.error("❌ Frequency betöltési hiba:", error);
         return [];
     }
 }
 async function getRandomFrequencyWord(level = FREQUENCY_LEVELS.TOP_10K) {
     await loadFrequency();
-    if (!frequencyData || frequencyData.length === 0) {
-        throw new Error("Frequency lista nem elérhető");
-    }
+    if (!frequencyData || frequencyData.length === 0) throw new Error("Frequency lista nem elérhető");
     let filteredWords = frequencyData;
     if (level !== FREQUENCY_LEVELS.ALL) {
         const maxRank = parseInt(level);
         filteredWords = frequencyData.filter((item)=>item.rank <= maxRank);
     }
-    if (filteredWords.length === 0) {
-        throw new Error(`Nincs szó a(z) ${level} szinten`);
-    }
+    if (filteredWords.length === 0) throw new Error(`Nincs szó a(z) ${level} szinten`);
     const randomIndex = Math.floor(Math.random() * filteredWords.length);
     const wordData = filteredWords[randomIndex];
     return {
@@ -159,14 +151,12 @@ function getFrequencyWordCount(level = FREQUENCY_LEVELS.TOP_10K) {
                 return 10000;
         }
     }
-    if (level === FREQUENCY_LEVELS.ALL) {
-        return frequencyData.length;
-    }
+    if (level === FREQUENCY_LEVELS.ALL) return frequencyData.length;
     const maxRank = parseInt(level);
     return frequencyData.filter((item)=>item.rank <= maxRank).length;
 }
 // ====================================
-// CSV CEFR FUNCTIONS (7989 szó)
+// CSV CEFR FUNCTIONS
 // ====================================
 let cefrData = null;
 async function loadCEFR() {
@@ -184,25 +174,19 @@ async function loadCEFR() {
                 cefr: parts[2]?.trim()
             };
         }).filter((item)=>item && item.word && item.cefr);
-        console.log(`📚 CEFR betöltve: ${cefrData.length} szó`);
         return cefrData;
     } catch (error) {
-        console.error("❌ CEFR betöltési hiba:", error);
         return [];
     }
 }
 async function getRandomCEFRWord(level = CEFR_LEVELS.ALL) {
     await loadCEFR();
-    if (!cefrData || cefrData.length === 0) {
-        throw new Error("CEFR lista nem elérhető");
-    }
+    if (!cefrData || cefrData.length === 0) throw new Error("CEFR lista nem elérhető");
     let filteredWords = cefrData;
     if (level !== CEFR_LEVELS.ALL) {
         filteredWords = cefrData.filter((item)=>item.cefr === level);
     }
-    if (filteredWords.length === 0) {
-        throw new Error(`Nincs szó a(z) ${level} szinten`);
-    }
+    if (filteredWords.length === 0) throw new Error(`Nincs szó a(z) ${level} szinten`);
     const randomIndex = Math.floor(Math.random() * filteredWords.length);
     const wordData = filteredWords[randomIndex];
     return {
@@ -213,71 +197,47 @@ async function getRandomCEFRWord(level = CEFR_LEVELS.ALL) {
     };
 }
 function getCEFRWordCount(level = CEFR_LEVELS.ALL) {
-    if (!cefrData) return 7989;
-    if (level === CEFR_LEVELS.ALL) {
-        return cefrData.length;
+    if (!cefrData) {
+        // Becslés, ha a lista még nincs betöltve
+        return 7989;
     }
+    if (level === CEFR_LEVELS.ALL) return cefrData.length;
     return cefrData.filter((item)=>item.cefr === level).length;
-}
-async function translateWord(englishWord) {
-    console.log(`🔍 Fordítás kérése a belső API-tól: ${englishWord}`);
-    try {
-        const response = await fetch(`/api/translate?word=${encodeURIComponent(englishWord)}`);
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || `API hiba: ${response.statusText}`);
-        }
-        const data = await response.json();
-        const hungarianMeanings = data.translation;
-        if (!hungarianMeanings || hungarianMeanings.length === 0) {
-            return [
-                "Nincs fordítás"
-            ];
-        }
-        console.log(`✅ Sikeres fordítás:`, hungarianMeanings);
-        return hungarianMeanings;
-    } catch (error) {
-        console.error("❌ Hiba a belső fordítási API hívásakor:", error);
-        return [
-            "Fordítási hiba"
-        ];
-    }
 }
 async function getRandomWord() {
     const source = getCurrentSource();
     const cefrLevel = getCurrentCEFRLevel();
     const frequencyLevel = getCurrentFrequencyLevel();
-    console.log("🎲 Random szó kérés:", {
-        source,
-        cefrLevel,
-        frequencyLevel
-    });
     let wordData;
     if (source === WORD_SOURCES.FREQUENCY) {
         wordData = await getRandomFrequencyWord(frequencyLevel);
     } else {
         wordData = await getRandomCEFRWord(cefrLevel);
     }
-    console.log("📝 Angol szó:", wordData.english);
     const cached = getCachedTranslation(wordData.english);
     if (cached) {
-        console.log("📦 Cache találat!");
         return {
             ...wordData,
             hungarian: cached.hungarian,
+            synonyms: cached.synonyms || [],
             cached: true
         };
     }
-    console.log("🌐 Nincs cache, API fordítás szükséges...");
-    const hungarian = await translateWord(wordData.english);
+    const response = await fetch(`/api/translate?word=${encodeURIComponent(wordData.english)}`);
+    if (!response.ok) {
+        throw new Error("Fordítási API hiba");
+    }
+    const translationData = await response.json();
     const result = {
         ...wordData,
-        hungarian,
+        hungarian: translationData.translation,
+        synonyms: translationData.synonyms,
         cached: false
     };
-    console.log("💾 Cache mentés:", wordData.english);
-    setCachedTranslation(wordData.english, result);
-    console.log("🎉 Teljes eredmény:", result);
+    setCachedTranslation(wordData.english, {
+        hungarian: result.hungarian,
+        synonyms: result.synonyms
+    });
     return result;
 }
 function getTotalWordsCount() {
@@ -295,7 +255,7 @@ function getCachedTranslation(word) {
     //TURBOPACK unreachable
     ;
 }
-function setCachedTranslation(word, translation) {
+function setCachedTranslation(word, translationWithSynonyms) {
     if ("TURBOPACK compile-time truthy", 1) return;
     //TURBOPACK unreachable
     ;
@@ -304,6 +264,7 @@ function clearCache() {
     if ("TURBOPACK compile-time truthy", 1) return 0;
     //TURBOPACK unreachable
     ;
+    let count;
 }
 }),
 "[project]/app/settings/page.js [app-ssr] (ecmascript)", ((__turbopack_context__) => {

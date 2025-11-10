@@ -1,6 +1,6 @@
-[00:00:04.834] Server  LOG      ✓ Ready in 4.1s
-[00:00:17.792] Server  LOG      ○ Compiling /flashcards ...
-[00:00:24.865] Browser ERROR   A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:
+[00:00:06.951] Server  LOG      ✓ Ready in 5.3s
+[00:00:27.095] Server  LOG      ○ Compiling / ...
+[00:00:31.213] Browser ERROR   A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:
 
 - A server/client branch `if (typeof window !== 'undefined')`.
 - Variable input such as `Date.now()` or `Math.random()` which changes each time it's called.
@@ -38,71 +38,3 @@ It can also happen if the client has a browser extension installed which messes 
                           >
                   ...
 
-[00:00:35.783] Browser LOG     🎲 Random szó kérés: {"cefrLevel":"A1","frequencyLevel":"10000","source":"cefr"}
-[00:00:35.783] Browser LOG     [2;38;2;124;124;124m%s[0m 🎲 Random szó kérés: {"cefrLevel":"A1","frequencyLevel":"10000","source":"cefr"}
-[00:00:35.783] Browser LOG     📚 CEFR betöltve: 7988 szó
-[00:00:35.783] Browser LOG     📝 Angol szó: event
-[00:00:35.783] Browser LOG     🌐 Nincs cache, API fordítás szükséges...
-[00:00:35.783] Browser LOG     🔍 Fordítás kérése a belső API-tól: event
-[00:00:35.783] Browser LOG     📚 CEFR betöltve: 7988 szó
-[00:00:35.783] Browser LOG     📝 Angol szó: everyday
-[00:00:35.783] Browser LOG     🌐 Nincs cache, API fordítás szükséges...
-[00:00:35.783] Browser LOG     🔍 Fordítás kérése a belső API-tól: everyday
-[00:00:36.419] Server  ERROR   ❌ Hiba a helyi szótár olvasásakor: ENOENT: no such file or directory, open 'C:\Users\Jonathan\Desktop\flashcard\public\data\mini_dictionary.json'
-[00:00:36.421] Server  LOG     📡 Próbálkozás a Deep-Translator API-val...
-[00:00:36.434] Server  ERROR   ❌ Hiba a helyi szótár olvasásakor: ENOENT: no such file or directory, open 'C:\Users\Jonathan\Desktop\flashcard\public\data\mini_dictionary.json'
-[00:00:36.434] Server  LOG     📡 Próbálkozás a Deep-Translator API-val...
-[00:00:37.270] Browser LOG     ✅ Sikeres fordítás: ["mindennapi"]
-[00:00:37.270] Browser LOG     💾 Cache mentés: everyday
-[00:00:37.270] Browser LOG     🎉 Teljes eredmény: {"cached":false,"cefr":"A1","english":"everyday","hungarian":["mindennapi"],"pos":"adjective","source":"cefr"}
-[00:00:37.459] Browser LOG     ✅ Sikeres fordítás: ["esemény"]
-[00:00:37.459] Browser LOG     💾 Cache mentés: event
-[00:00:37.459] Browser LOG     🎉 Teljes eredmény: {"cached":false,"cefr":"A1","english":"event","hungarian":["esemény"],"pos":"noun","source":"cefr"}
-[00:01:00.974] Server  LOG     📡 Próbálkozás a Deep-Translator API-val...
-[00:01:01.052] Browser LOG     🎲 Random szó kérés: {"cefrLevel":"A1","frequencyLevel":"10000","source":"cefr"}
-[00:01:01.052] Browser LOG     📝 Angol szó: other
-[00:01:01.052] Browser LOG     🌐 Nincs cache, API fordítás szükséges...
-[00:01:01.052] Browser LOG     🔍 Fordítás kérése a belső API-tól: other
-[00:01:01.828] Browser LOG     ✅ Sikeres fordítás: ["más"]
-[00:01:01.828] Browser LOG     💾 Cache mentés: other
-[00:01:01.828] Browser LOG     🎉 Teljes eredmény: {"cached":false,"cefr":"A1","english":"other","hungarian":["más"],"pos":"determiner","source":"cefr"}
-[00:01:05.357] Server  LOG     📡 Próbálkozás a Deep-Translator API-val...
-[00:01:05.443] Browser LOG     🎲 Random szó kérés: {"cefrLevel":"A1","frequencyLevel":"10000","source":"cefr"}
-[00:01:05.443] Browser LOG     📝 Angol szó: favourite
-[00:01:05.443] Browser LOG     🌐 Nincs cache, API fordítás szükséges...
-[00:01:05.443] Browser LOG     🔍 Fordítás kérése a belső API-tól: favourite
-[00:01:05.725] Browser LOG     ✅ Sikeres fordítás: ["kedvenc"]
-[00:01:05.725] Browser LOG     💾 Cache mentés: favourite
-[00:01:05.725] Browser LOG     🎉 Teljes eredmény: {"cached":false,"cefr":"A1","english":"favourite","hungarian":["kedvenc"],"pos":"adjective","source":"cefr"}
-[00:01:08.361] Server  LOG     📡 Próbálkozás a Deep-Translator API-val...
-[00:01:08.441] Browser LOG     🎲 Random szó kérés: {"cefrLevel":"A1","frequencyLevel":"10000","source":"cefr"}
-[00:01:08.441] Browser LOG     📝 Angol szó: those
-[00:01:08.441] Browser LOG     🌐 Nincs cache, API fordítás szükséges...
-[00:01:08.441] Browser LOG     🔍 Fordítás kérése a belső API-tól: those
-[00:01:08.701] Browser LOG     ✅ Sikeres fordítás: ["azok"]
-[00:01:08.701] Browser LOG     💾 Cache mentés: those
-[00:01:08.701] Browser LOG     🎉 Teljes eredmény: {"cached":false,"cefr":"A1","english":"those","hungarian":["azok"],"pos":"pronoun","source":"cefr"}
-[00:01:14.407] Server  LOG     📡 Próbálkozás a Deep-Translator API-val...
-[00:01:14.472] Browser LOG     🎲 Random szó kérés: {"cefrLevel":"A1","frequencyLevel":"10000","source":"cefr"}
-[00:01:14.472] Browser LOG     📝 Angol szó: feel
-[00:01:14.472] Browser LOG     🌐 Nincs cache, API fordítás szükséges...
-[00:01:14.472] Browser LOG     🔍 Fordítás kérése a belső API-tól: feel
-[00:01:15.138] Browser LOG     ✅ Sikeres fordítás: ["érezni"]
-[00:01:15.138] Browser LOG     💾 Cache mentés: feel
-[00:01:15.138] Browser LOG     🎉 Teljes eredmény: {"cached":false,"cefr":"A1","english":"feel","hungarian":["érezni"],"pos":"verb","source":"cefr"}
-[00:01:17.558] Server  LOG     📡 Próbálkozás a Deep-Translator API-val...
-[00:01:17.638] Browser LOG     🎲 Random szó kérés: {"cefrLevel":"A1","frequencyLevel":"10000","source":"cefr"}
-[00:01:17.638] Browser LOG     📝 Angol szó: cousin
-[00:01:17.638] Browser LOG     🌐 Nincs cache, API fordítás szükséges...
-[00:01:17.638] Browser LOG     🔍 Fordítás kérése a belső API-tól: cousin
-[00:01:17.994] Browser LOG     ✅ Sikeres fordítás: ["unokatestvér"]
-[00:01:17.994] Browser LOG     💾 Cache mentés: cousin
-[00:01:17.994] Browser LOG     🎉 Teljes eredmény: {"cached":false,"cefr":"A1","english":"cousin","hungarian":["unokatestvér"],"pos":"noun","source":"cefr"}
-[00:01:21.804] Server  LOG     📡 Próbálkozás a Deep-Translator API-val...
-[00:01:21.892] Browser LOG     🎲 Random szó kérés: {"cefrLevel":"A1","frequencyLevel":"10000","source":"cefr"}
-[00:01:21.892] Browser LOG     📝 Angol szó: uncle
-[00:01:21.893] Browser LOG     🌐 Nincs cache, API fordítás szükséges...
-[00:01:21.893] Browser LOG     🔍 Fordítás kérése a belső API-tól: uncle
-[00:01:22.244] Browser LOG     ✅ Sikeres fordítás: ["nagybácsi"]
-[00:01:22.244] Browser LOG     💾 Cache mentés: uncle
-[00:01:22.244] Browser LOG     🎉 Teljes eredmény: {"cached":false,"cefr":"A1","english":"uncle","hungarian":["nagybácsi"],"pos":"noun","source":"cefr"}

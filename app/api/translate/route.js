@@ -25,56 +25,65 @@ async function getFromLocalDictionary(word) {
     const result = miniDictionary[word.toLowerCase()];
     return result || [];
   } catch (error) {
-    console.error(`❌ Hiba a helyi szótár olvasásakor: ${error.message}`);
     miniDictionary = {};
     return [];
   }
 }
 
-// 2. SZOLGÁLTATÓ: Deep-Translator API (A megbízható, ingyenes API szerver)
-async function getDeepTranslator(word) {
+// 2. SZOLGÁLTATÓ: Deep-Translator (Google - gyors fordítás)
+async function getQuickTranslation(word) {
   try {
-    console.log(`📡 Próbálkozás a Deep-Translator API-val...`);
     const response = await fetch(
       "https://deep-translator-api.azurewebsites.net/google/",
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          source: "auto",
-          target: "hu",
-          text: word,
-        }),
+        body: JSON.stringify({ source: "auto", target: "hu", text: word }),
       }
     );
-
-    if (!response.ok) {
-      throw new Error(`Status: ${response.status}`);
-    }
-
+    if (!response.ok) return [];
     const data = await response.json();
     return data.translation ? [data.translation.toLowerCase()] : [];
   } catch (error) {
-    console.warn(`⚠️ Deep-Translator API hiba: ${error.message}`);
     return [];
   }
 }
 
-// 3. SZOLGÁLTATÓ: Dictionary (Végső tartalék)
-async function getDictionaryDefinitions(word) {
+// 3. SZOLGÁLTATÓ: Deep-Translator (PONS - több szótári jelentés)
+async function getDictionaryMeanings(word) {
+  try {
+    const response = await fetch(
+      "https://deep-translator-api.azurewebsites.net/pons/",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ source: "en", target: "hu", text: word }),
+      }
+    );
+    if (!response.ok) return [];
+    const data = await response.json();
+    return Array.isArray(data.translation)
+      ? data.translation.map((t) => t.toLowerCase())
+      : [];
+  } catch (error) {
+    return [];
+  }
+}
+
+// 4. SZOLGÁLTATÓ: Dictionary API (CSAK végső tartalék definíció)
+async function getEnglishDefinition(word) {
   try {
     const response = await fetch(
       `https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(
         word
       )}`
     );
-    if (!response.ok) return [];
+    if (!response.ok) return null;
     const data = await response.json();
     const definition = data[0]?.meanings?.[0]?.definitions?.[0]?.definition;
-    return definition ? [`(def.) ${definition}`] : [];
+    return definition ? `(def.) ${definition}` : null;
   } catch (error) {
-    console.warn(`⚠️ Dictionary API hiba: ${error.message}`);
-    return [];
+    return null;
   }
 }
 
@@ -86,37 +95,104 @@ export async function GET(request) {
   const word = searchParams.get("word");
 
   if (!word) {
-    return NextResponse.json(
-      { error: 'A "word" paraméter kötelező.' },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: 'A "word" paraméter kötelező.' });
   }
-
-  let finalMeanings = [];
 
   // 1. LÉPÉS: Keresés a helyi szótárban
-  const localResults = await getFromLocalDictionary(word);
-  if (localResults.length > 0) {
-    finalMeanings.push(...localResults);
+  let finalMeanings = await getFromLocalDictionary(word);
+
+  // 2. LÉPÉS: Ha nincs helyi találat, hívjuk a külső API-kat
+  if (finalMeanings.length === 0) {
+    const [quick, dictionary] = await Promise.all([
+      getQuickTranslation(word),
+      getDictionaryMeanings(word),
+    ]);
+
+    // Összefésüljük a MAGYAR eredményeket
+    const combined = [...new Set([...quick, ...dictionary])];
+    finalMeanings = combined.filter(Boolean);
   }
 
-  // 2. LÉPÉS: Ha nincs helyi találat, jöhet a Deep-Translator API
+  // 3. LÉPÉS: Végső tartalék, ha egyik magyar forrás sem működött
   if (finalMeanings.length === 0) {
-    const deepLResults = await getDeepTranslator(word);
-    if (deepLResults.length > 0) {
-      finalMeanings.push(...deepLResults);
+    const definition = await getEnglishDefinition(word);
+    if (definition) {
+      finalMeanings.push(definition);
     }
   }
 
-  // 3. LÉPÉS: Végső tartalék
   if (finalMeanings.length === 0) {
-    const definitions = await getDictionaryDefinitions(word);
-    finalMeanings.push(...definitions);
+    // A synonyms kulcsot üresen küldjük, hogy a UI ne jelenítsen meg semmit
+    return NextResponse.json({
+      translation: ["Nincs elérhető fordítás"],
+      synonyms: [],
+    });
   }
 
-  if (finalMeanings.length === 0) {
-    return NextResponse.json({ translation: ["Nincs elérhető fordítás"] });
-  }
-
-  return NextResponse.json({ translation: finalMeanings });
+  // A synonyms kulcsot üresen küldjük
+  return NextResponse.json({ translation: finalMeanings, synonyms: [] });
 }
+// import { NextResponse } from 'next/server';
+// import path from 'path';
+// import { promises as fs } from 'fs';
+
+// export const dynamic = 'force-dynamic';
+
+// let superDictionary = null;
+// async function getFromLocalDictionary(word) {
+//   try {
+//     if (superDictionary === null) {
+//       console.log('📚 Szuper-szótár betöltése...');
+//       const jsonPath = path.join(process.cwd(), 'public', 'data', 'super_dictionary.json');
+//       const jsonData = await fs.readFile(jsonPath, 'utf-8');
+//       superDictionary = JSON.parse(jsonData);
+//       console.log('✅ Szuper-szótár sikeresen betöltve.');
+//     }
+//     const result = superDictionary[word.toLowerCase()];
+//     return result || [];
+//   } catch (error) {
+//     console.error(`❌ Hiba a szuper-szótár olvasásakor: ${error.message}`);
+//     superDictionary = {};
+//     return [];
+//   }
+// }
+
+// // Végső tartalék angol definíció
+// async function getEnglishDefinition(word) {
+//   try {
+//     const response = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${encodeURIComponent(word)}`);
+//     if (!response.ok) return null;
+//     const data = await response.json();
+//     const definition = data[0]?.meanings?.[0]?.definitions?.[0]?.definition;
+//     return definition ? `(def.) ${definition}` : null;
+//   } catch (error) {
+//     return null;
+//   }
+// }
+
+// export async function GET(request) {
+//   const { searchParams } = new URL(request.url);
+//   const word = searchParams.get('word');
+
+//   if (!word) {
+//     return NextResponse.json({ translation: [], synonyms: [] });
+//   }
+
+//   // 1. LÉPÉS: Keresés a Szuper-szótárban
+//   let finalMeanings = await getFromLocalDictionary(word);
+
+//   // 2. LÉPÉS: Végső tartalék, ha a szó valamiért nincs a szótárunkban
+//   if (finalMeanings.length === 0) {
+//     console.log(`‼️ '${word}' nincs a szuper-szótárban. Próbálkozás angol definícióval.`);
+//     const definition = await getEnglishDefinition(word);
+//     if (definition) {
+//       finalMeanings.push(definition);
+//     }
+//   }
+
+//   if (finalMeanings.length === 0) {
+//     return NextResponse.json({ translation: ["Nincs elérhető fordítás"], synonyms: [] });
+//   }
+
+//   return NextResponse.json({ translation: finalMeanings, synonyms: [] });
+// }
