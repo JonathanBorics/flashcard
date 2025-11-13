@@ -13,6 +13,10 @@ import {
   Alert,
   Chip,
   Divider,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from "@mui/material";
 import {
   VolumeUp,
@@ -21,8 +25,11 @@ import {
   Refresh,
   Settings,
   CloudDownload,
+  Stop,
+  BarChart,
 } from "@mui/icons-material";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   getRandomWord,
   getTotalWordsCount,
@@ -31,8 +38,16 @@ import {
   getCurrentFrequencyLevel,
   WORD_SOURCES,
 } from "../../utils/api";
+import {
+  addKnownWord,
+  addUnknownWord,
+  updateSessionStats,
+  resetSessionStats,
+} from "../../utils/progressTracker";
+import { useSwipe } from "../../utils/useSwipe";
 
 export default function Flashcards() {
+  const router = useRouter();
   const [currentWord, setCurrentWord] = useState({
     english: "",
     hungarian: [],
@@ -46,6 +61,8 @@ export default function Flashcards() {
   const [wordSource, setWordSource] = useState(WORD_SOURCES.FREQUENCY);
   const [cefrLevel, setCefrLevel] = useState("ALL");
   const [frequencyLevel, setFrequencyLevel] = useState("10000");
+  const [swipeDirection, setSwipeDirection] = useState(null);
+  const [finishDialogOpen, setFinishDialogOpen] = useState(false);
 
   // Forrás és szint betöltése
   useEffect(() => {
@@ -59,6 +76,7 @@ export default function Flashcards() {
     setLoading(true);
     setError(null);
     setIsFlipped(false);
+    setSwipeDirection(null);
 
     try {
       let wordData;
@@ -88,8 +106,34 @@ export default function Flashcards() {
 
   // Első szó betöltése
   useEffect(() => {
+    resetSessionStats();
     loadRandomWord();
   }, []);
+
+  // Jobbra húzás = Tudom a szót
+  const handleSwipeRight = () => {
+    if (loading || !currentWord) return;
+    setSwipeDirection("right");
+    setTimeout(() => {
+      addKnownWord(currentWord.english);
+      updateSessionStats(true);
+      handleNext();
+    }, 300);
+  };
+
+  // Balra húzás = Nem tudom a szót
+  const handleSwipeLeft = () => {
+    if (loading || !currentWord) return;
+    setSwipeDirection("left");
+    setTimeout(() => {
+      addUnknownWord(currentWord.english);
+      updateSessionStats(false);
+      handleNext();
+    }, 300);
+  };
+
+  // Swipe hook
+  const swipeHandlers = useSwipe(handleSwipeLeft, handleSwipeRight);
 
   // Kártya megfordítása
   const handleFlip = () => {
@@ -125,7 +169,17 @@ export default function Flashcards() {
   const handleRestart = () => {
     setUsedWords([]);
     setWordsLearned(0);
+    resetSessionStats();
     loadRandomWord();
+  };
+
+  // Játék befejezése
+  const handleFinishGame = () => {
+    setFinishDialogOpen(true);
+  };
+
+  const confirmFinish = () => {
+    router.push("/stats");
   };
 
   const totalWords = getTotalWordsCount();
@@ -220,10 +274,20 @@ export default function Flashcards() {
           </Alert>
         )}
 
+        {/* Instrukciók */}
+        <Alert severity="info" sx={{ mb: 2 }}>
+          <Typography variant="body2">
+            <strong>➡️ Jobbra</strong> = Tudom a szót
+            <br />
+            <strong>⬅️ Balra</strong> = Nem tudom a szót
+          </Typography>
+        </Alert>
+
         {/* Flashcard */}
         <Paper
           elevation={6}
           onClick={handleFlip}
+          {...swipeHandlers}
           sx={{
             minHeight: 400,
             display: "flex",
@@ -234,13 +298,20 @@ export default function Flashcards() {
             p: 4,
             mb: 3,
             borderRadius: 4,
-            transition: "all 0.6s cubic-bezier(0.4, 0, 0.2, 1)",
-            transform: isFlipped ? "rotateY(180deg)" : "rotateY(0)",
+            transition: "all 0.3s ease",
+            transform:
+              swipeDirection === "right"
+                ? "translateX(300px) rotate(20deg)"
+                : swipeDirection === "left"
+                ? "translateX(-300px) rotate(-20deg)"
+                : isFlipped
+                ? "rotateY(180deg)"
+                : "rotateY(0)",
             transformStyle: "preserve-3d",
+            opacity: swipeDirection ? 0 : 1,
             "&:hover": {
               boxShadow: loading ? 6 : 12,
             },
-            opacity: loading ? 0.6 : 1,
           }}
         >
           {loading ? (
@@ -367,7 +438,7 @@ export default function Flashcards() {
                     color="text.secondary"
                     sx={{ mt: 3 }}
                   >
-                    Kattints újra az angol szóhoz
+                    Húzd jobbra ha tudod, balra ha nem
                   </Typography>
                 </>
               )}
@@ -380,34 +451,96 @@ export default function Flashcards() {
           )}
         </Paper>
 
-        {/* Következő gomb */}
-        <Button
-          variant="contained"
-          size="large"
-          endIcon={<NavigateNext />}
-          onClick={handleNext}
-          disabled={loading}
-          fullWidth
-          sx={{
-            py: 2,
-            fontSize: "1.1rem",
-            fontWeight: "bold",
-            boxShadow: 3,
-          }}
-        >
-          {loading ? "Betöltés..." : "Következő szó"}
-        </Button>
+        {/* Manuális gombok */}
+        <Box sx={{ display: "flex", gap: 2, mb: 2 }}>
+          <Button
+            variant="outlined"
+            color="error"
+            startIcon={<NavigateNext sx={{ transform: "rotate(180deg)" }} />}
+            onClick={handleSwipeLeft}
+            disabled={loading}
+            fullWidth
+            sx={{ py: 1.5 }}
+          >
+            Nem tudom
+          </Button>
+
+          <Button
+            variant="contained"
+            color="success"
+            endIcon={<NavigateNext />}
+            onClick={handleSwipeRight}
+            disabled={loading}
+            fullWidth
+            sx={{ py: 1.5 }}
+          >
+            Tudom!
+          </Button>
+        </Box>
+
+        {/* Játék befejezése és Statisztika gombok */}
+        <Box sx={{ display: "flex", gap: 2 }}>
+          <Button
+            variant="outlined"
+            color="warning"
+            startIcon={<Stop />}
+            onClick={handleFinishGame}
+            disabled={loading || wordsLearned === 0}
+            fullWidth
+            sx={{ py: 1.5 }}
+          >
+            Befejezés
+          </Button>
+
+          <Link
+            href="/stats"
+            passHref
+            style={{ textDecoration: "none", width: "100%" }}
+          >
+            <Button
+              variant="outlined"
+              color="primary"
+              startIcon={<BarChart />}
+              fullWidth
+              sx={{ py: 1.5 }}
+            >
+              Statisztika
+            </Button>
+          </Link>
+        </Box>
 
         {/* Infó szövegek */}
         <Box sx={{ mt: 3, textAlign: "center" }}>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-            💡 Kattints a kártyára a magyar jelentés megtekintéséhez
+            💡 Húzd a kártyát vagy nyomd meg a gombokat
           </Typography>
 
           <Typography variant="caption" color="text.secondary">
             🎯 Beállítások → Válaszd ki a nehézségi szintet
           </Typography>
         </Box>
+
+        {/* Befejezés megerősítő dialog */}
+        <Dialog
+          open={finishDialogOpen}
+          onClose={() => setFinishDialogOpen(false)}
+        >
+          <DialogTitle>Játék befejezése?</DialogTitle>
+          <DialogContent>
+            <Typography>
+              Eddig {wordsLearned} szót néztél meg. Szeretnéd befejezni a
+              játékot és megnézni a statisztikákat?
+            </Typography>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setFinishDialogOpen(false)}>
+              Folytatás
+            </Button>
+            <Button onClick={confirmFinish} variant="contained" color="primary">
+              Statisztika
+            </Button>
+          </DialogActions>
+        </Dialog>
       </Box>
     </Container>
   );

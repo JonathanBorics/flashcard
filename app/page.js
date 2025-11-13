@@ -1,10 +1,20 @@
 "use client";
 
-import { Container, Box, Typography, Button, Paper } from "@mui/material";
-import { School, PlayArrow } from "@mui/icons-material";
+import { useState, useEffect } from "react";
+import { Container, Box, Typography, Button, Paper, Chip } from "@mui/material";
+import { School, PlayArrow, FitnessCenter } from "@mui/icons-material";
 import Link from "next/link";
+import { getUnknownWords } from "../utils/progressTracker";
 
 export default function Home() {
+  const [unknownCount, setUnknownCount] = useState(0);
+
+  useEffect(() => {
+    // Betöltjük a nem tudott szavak számát
+    const words = getUnknownWords();
+    setUnknownCount(words.length);
+  }, []);
+
   return (
     <Container maxWidth="sm">
       <Box
@@ -52,27 +62,77 @@ export default function Home() {
             hangos kiejtés segítségével.
           </Typography>
 
-          <Link href="/flashcards" passHref style={{ textDecoration: "none" }}>
-            <Button
-              variant="contained"
-              size="large"
-              startIcon={<PlayArrow />}
-              sx={{
-                py: 1.5,
-                px: 4,
-                fontSize: "1.1rem",
-                fontWeight: "bold",
-                boxShadow: 3,
-                "&:hover": {
-                  boxShadow: 6,
-                  transform: "translateY(-2px)",
-                },
-                transition: "all 0.3s ease",
-              }}
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+            {/* Kezdés gomb */}
+            <Link
+              href="/flashcards"
+              passHref
+              style={{ textDecoration: "none" }}
             >
-              Kezdés
-            </Button>
-          </Link>
+              <Button
+                variant="contained"
+                size="large"
+                startIcon={<PlayArrow />}
+                fullWidth
+                sx={{
+                  py: 1.5,
+                  px: 4,
+                  fontSize: "1.1rem",
+                  fontWeight: "bold",
+                  boxShadow: 3,
+                  "&:hover": {
+                    boxShadow: 6,
+                    transform: "translateY(-2px)",
+                  },
+                  transition: "all 0.3s ease",
+                }}
+              >
+                Kezdés
+              </Button>
+            </Link>
+
+            {/* Gyakorlás gomb - csak ha vannak nem tudott szavak */}
+            {unknownCount > 0 && (
+              <Link
+                href="/flashcards/practice"
+                passHref
+                style={{ textDecoration: "none" }}
+              >
+                <Button
+                  variant="contained"
+                  color="error"
+                  size="large"
+                  startIcon={<FitnessCenter />}
+                  fullWidth
+                  sx={{
+                    py: 1.5,
+                    px: 4,
+                    fontSize: "1.1rem",
+                    fontWeight: "bold",
+                    boxShadow: 3,
+                    "&:hover": {
+                      boxShadow: 6,
+                      transform: "translateY(-2px)",
+                    },
+                    transition: "all 0.3s ease",
+                    position: "relative",
+                  }}
+                >
+                  Gyakorlás
+                  <Chip
+                    label={unknownCount}
+                    size="small"
+                    color="warning"
+                    sx={{
+                      position: "absolute",
+                      right: 16,
+                      fontWeight: "bold",
+                    }}
+                  />
+                </Button>
+              </Link>
+            )}
+          </Box>
         </Paper>
 
         <Box
@@ -92,6 +152,16 @@ export default function Home() {
               ⚙️ Beállítások (Fájl választás)
             </Button>
           </Link>
+
+          {unknownCount > 0 && (
+            <Typography
+              variant="caption"
+              color="error.main"
+              sx={{ mt: 1, fontWeight: "bold" }}
+            >
+              ❌ {unknownCount} szót még nem tudsz - gyakorold őket!
+            </Typography>
+          )}
         </Box>
       </Box>
     </Container>
