@@ -28,26 +28,39 @@ __turbopack_context__.s([
     ()=>addUnknownWord,
     "calculateProgress",
     ()=>calculateProgress,
+    "clearGameState",
+    ()=>clearGameState,
     "clearKnownWords",
     ()=>clearKnownWords,
     "clearUnknownWords",
     ()=>clearUnknownWords,
+    "getGameState",
+    ()=>getGameState,
     "getKnownWords",
     ()=>getKnownWords,
     "getSessionStats",
     ()=>getSessionStats,
+    "getStreak",
+    ()=>getStreak,
     "getUnknownWords",
     ()=>getUnknownWords,
+    "hasGameInProgress",
+    ()=>hasGameInProgress,
     "removeUnknownWord",
     ()=>removeUnknownWord,
     "resetSessionStats",
     ()=>resetSessionStats,
+    "saveGameState",
+    ()=>saveGameState,
     "updateSessionStats",
-    ()=>updateSessionStats
+    ()=>updateSessionStats,
+    "updateStreak",
+    ()=>updateStreak
 ]);
 const KNOWN_WORDS_KEY = "knownWords";
 const UNKNOWN_WORDS_KEY = "unknownWords";
 const SESSION_STATS_KEY = "sessionStats";
+const GAME_STATE_KEY = "gameState"; // ÚJ!
 function getKnownWords() {
     if ("TURBOPACK compile-time truthy", 1) return [];
     //TURBOPACK unreachable
@@ -107,6 +120,25 @@ function resetSessionStats() {
     //TURBOPACK unreachable
     ;
 }
+function saveGameState(state) {
+    if ("TURBOPACK compile-time truthy", 1) return;
+    //TURBOPACK unreachable
+    ;
+}
+function getGameState() {
+    if ("TURBOPACK compile-time truthy", 1) return null;
+    //TURBOPACK unreachable
+    ;
+}
+function clearGameState() {
+    if ("TURBOPACK compile-time truthy", 1) return;
+    //TURBOPACK unreachable
+    ;
+}
+function hasGameInProgress() {
+    const state = getGameState();
+    return state !== null;
+}
 function calculateProgress(totalWords, source, level) {
     const knownWords = getKnownWords();
     const unknownWords = getUnknownWords();
@@ -124,63 +156,48 @@ function calculateProgress(totalWords, source, level) {
         level
     };
 }
-}),
-"[project]/utils/api.js [app-ssr] (ecmascript)", ((__turbopack_context__) => {
-"use strict";
-
-// Szó források konfigurációja
-__turbopack_context__.s([
-    "CEFR_LEVELS",
-    ()=>CEFR_LEVELS,
-    "FREQUENCY_LEVELS",
-    ()=>FREQUENCY_LEVELS,
-    "WORD_SOURCES",
-    ()=>WORD_SOURCES,
-    "clearCache",
-    ()=>clearCache,
-    "getCEFRWordCount",
-    ()=>getCEFRWordCount,
-    "getCachedTranslation",
-    ()=>getCachedTranslation,
-    "getCurrentCEFRLevel",
-    ()=>getCurrentCEFRLevel,
-    "getCurrentFrequencyLevel",
-    ()=>getCurrentFrequencyLevel,
-    "getCurrentSource",
-    ()=>getCurrentSource,
-    "getFrequencyWordCount",
-    ()=>getFrequencyWordCount,
-    "getRandomCEFRWord",
-    ()=>getRandomCEFRWord,
-    "getRandomFrequencyWord",
-    ()=>getRandomFrequencyWord,
-    "getRandomWord",
-    ()=>getRandomWord,
-    "getTotalWordsCount",
-    ()=>getTotalWordsCount,
-    "setCachedTranslation",
-    ()=>setCachedTranslation,
-    "setCurrentCEFRLevel",
-    ()=>setCurrentCEFRLevel,
-    "setCurrentFrequencyLevel",
-    ()=>setCurrentFrequencyLevel,
-    "setCurrentSource",
-    ()=>setCurrentSource
-]);
-const WORD_SOURCES = {
-    FREQUENCY: "frequency",
-    CEFR: "cefr"
-};
-function getCurrentSource() {
-    if ("TURBOPACK compile-time truthy", 1) return WORD_SOURCES.FREQUENCY;
-    //TURBOPACK unreachable
-    ;
-}
-function setCurrentSource(source) {
+// ====================================
+// 🆕 STREAK TRACKING
+// ====================================
+const STREAK_KEY = "dailyStreak";
+function updateStreak() {
     if ("TURBOPACK compile-time truthy", 1) return;
     //TURBOPACK unreachable
     ;
 }
+function getStreak() {
+    if ("TURBOPACK compile-time truthy", 1) return 0;
+    //TURBOPACK unreachable
+    ;
+}
+}),
+"[project]/utils/api.js [app-ssr] (ecmascript)", ((__turbopack_context__) => {
+"use strict";
+
+// ====================================
+// ÚJ SZÓTÁR RENDSZER - cefr_dictionary.json
+// ====================================
+// CEFR szintek
+__turbopack_context__.s([
+    "CEFR_LEVELS",
+    ()=>CEFR_LEVELS,
+    "clearCache",
+    ()=>clearCache,
+    "getCEFRWordCount",
+    ()=>getCEFRWordCount,
+    "getCurrentCEFRLevel",
+    ()=>getCurrentCEFRLevel,
+    "getRandomWord",
+    ()=>getRandomWord,
+    "getStatsByLevel",
+    ()=>getStatsByLevel,
+    "getTotalWordsCount",
+    ()=>getTotalWordsCount,
+    "lookupWord",
+    ()=>lookupWord,
+    "setCurrentCEFRLevel",
+    ()=>setCurrentCEFRLevel
+]);
 const CEFR_LEVELS = {
     ALL: "all",
     A1: "A1",
@@ -200,197 +217,124 @@ function setCurrentCEFRLevel(level) {
     //TURBOPACK unreachable
     ;
 }
-const FREQUENCY_LEVELS = {
-    TOP_1K: "1000",
-    TOP_10K: "10000",
-    TOP_50K: "50000",
-    ALL: "all"
-};
-function getCurrentFrequencyLevel() {
-    if ("TURBOPACK compile-time truthy", 1) return FREQUENCY_LEVELS.TOP_10K;
-    //TURBOPACK unreachable
-    ;
-}
-function setCurrentFrequencyLevel(level) {
-    if ("TURBOPACK compile-time truthy", 1) return;
-    //TURBOPACK unreachable
-    ;
-}
 // ====================================
-// FREQUENCY CSV FUNCTIONS
+// SZÓTÁR BETÖLTÉS
 // ====================================
-let frequencyData = null;
-async function loadFrequency() {
-    if (frequencyData) return frequencyData;
+let dictionary = null;
+async function loadDictionary() {
+    if (dictionary) return dictionary;
     try {
-        const response = await fetch("/data/valid_words_sorted_by_frequency.csv");
-        const csvText = await response.text();
-        const lines = csvText.split("\n").slice(1);
-        frequencyData = lines.map((line)=>{
-            const parts = line.split(",");
-            if (parts.length < 3) return null;
-            const rank = parseInt(parts[0]?.trim());
-            const word = parts[1]?.trim();
-            const frequency = parseInt(parts[2]?.trim());
-            if (!word || isNaN(rank)) return null;
-            return {
-                rank,
-                word,
-                frequency: frequency || 0
-            };
-        }).filter(Boolean);
-        return frequencyData;
+        const response = await fetch("/data/cefr_dictionary.json");
+        if (!response.ok) throw new Error("Dictionary not found");
+        dictionary = await response.json();
+        console.log(`📚 Szótár betöltve: ${Object.keys(dictionary).length} szó`);
+        return dictionary;
     } catch (error) {
-        return [];
+        console.error("❌ Szótár betöltési hiba:", error);
+        return {};
     }
-}
-async function getRandomFrequencyWord(level = FREQUENCY_LEVELS.TOP_10K) {
-    await loadFrequency();
-    if (!frequencyData || frequencyData.length === 0) throw new Error("Frequency lista nem elérhető");
-    let filteredWords = frequencyData;
-    if (level !== FREQUENCY_LEVELS.ALL) {
-        const maxRank = parseInt(level);
-        filteredWords = frequencyData.filter((item)=>item.rank <= maxRank);
-    }
-    if (filteredWords.length === 0) throw new Error(`Nincs szó a(z) ${level} szinten`);
-    const randomIndex = Math.floor(Math.random() * filteredWords.length);
-    const wordData = filteredWords[randomIndex];
-    return {
-        english: wordData.word,
-        rank: wordData.rank,
-        frequency: wordData.frequency,
-        source: "frequency"
-    };
-}
-function getFrequencyWordCount(level = FREQUENCY_LEVELS.TOP_10K) {
-    if (!frequencyData) {
-        switch(level){
-            case FREQUENCY_LEVELS.TOP_1K:
-                return 1000;
-            case FREQUENCY_LEVELS.TOP_10K:
-                return 10000;
-            case FREQUENCY_LEVELS.TOP_50K:
-                return 50000;
-            case FREQUENCY_LEVELS.ALL:
-                return 172000;
-            default:
-                return 10000;
-        }
-    }
-    if (level === FREQUENCY_LEVELS.ALL) return frequencyData.length;
-    const maxRank = parseInt(level);
-    return frequencyData.filter((item)=>item.rank <= maxRank).length;
 }
 // ====================================
-// CSV CEFR FUNCTIONS
+// SZAVAK SZŰRÉSE CEFR SZERINT
 // ====================================
-let cefrData = null;
-async function loadCEFR() {
-    if (cefrData) return cefrData;
-    try {
-        const response = await fetch("/data/word_list_cefr.csv");
-        const csvText = await response.text();
-        const lines = csvText.split("\n").slice(1);
-        cefrData = lines.map((line)=>{
-            const parts = line.split(";");
-            if (parts.length < 3) return null;
-            return {
-                word: parts[0]?.trim(),
-                pos: parts[1]?.trim(),
-                cefr: parts[2]?.trim()
-            };
-        }).filter((item)=>item && item.word && item.cefr);
-        return cefrData;
-    } catch (error) {
-        return [];
+function filterWordsByLevel(dict, level) {
+    if (level === CEFR_LEVELS.ALL) {
+        return Object.keys(dict);
     }
-}
-async function getRandomCEFRWord(level = CEFR_LEVELS.ALL) {
-    await loadCEFR();
-    if (!cefrData || cefrData.length === 0) throw new Error("CEFR lista nem elérhető");
-    let filteredWords = cefrData;
-    if (level !== CEFR_LEVELS.ALL) {
-        filteredWords = cefrData.filter((item)=>item.cefr === level);
-    }
-    if (filteredWords.length === 0) throw new Error(`Nincs szó a(z) ${level} szinten`);
-    const randomIndex = Math.floor(Math.random() * filteredWords.length);
-    const wordData = filteredWords[randomIndex];
-    return {
-        english: wordData.word,
-        pos: wordData.pos,
-        cefr: wordData.cefr,
-        source: "cefr"
-    };
-}
-function getCEFRWordCount(level = CEFR_LEVELS.ALL) {
-    if (!cefrData) {
-        // Becslés, ha a lista még nincs betöltve
-        return 7989;
-    }
-    if (level === CEFR_LEVELS.ALL) return cefrData.length;
-    return cefrData.filter((item)=>item.cefr === level).length;
+    // Csak azok a szavak, amelyeknek van adott szintű bejegyzése
+    return Object.keys(dict).filter((word)=>{
+        const entries = dict[word];
+        return entries.some((entry)=>entry.cefr === level);
+    });
 }
 async function getRandomWord() {
-    const source = getCurrentSource();
-    const cefrLevel = getCurrentCEFRLevel();
-    const frequencyLevel = getCurrentFrequencyLevel();
-    let wordData;
-    if (source === WORD_SOURCES.FREQUENCY) {
-        wordData = await getRandomFrequencyWord(frequencyLevel);
-    } else {
-        wordData = await getRandomCEFRWord(cefrLevel);
+    const dict = await loadDictionary();
+    const level = getCurrentCEFRLevel();
+    if (!dict || Object.keys(dict).length === 0) {
+        throw new Error("Szótár nem elérhető");
     }
-    const cached = getCachedTranslation(wordData.english);
-    if (cached) {
+    // Szűrés CEFR szint szerint
+    const availableWords = filterWordsByLevel(dict, level);
+    if (availableWords.length === 0) {
+        throw new Error(`Nincs szó a(z) ${level} szinten`);
+    }
+    // Random szó választása
+    const randomIndex = Math.floor(Math.random() * availableWords.length);
+    const selectedWord = availableWords[randomIndex];
+    const wordData = dict[selectedWord];
+    // Ha több bejegyzés van, válasszunk a megfelelő szintből
+    let selectedEntry;
+    if (level === CEFR_LEVELS.ALL) {
+        // Random bejegyzés
+        selectedEntry = wordData[Math.floor(Math.random() * wordData.length)];
+    } else {
+        // Adott szintű bejegyzés
+        const matchingEntries = wordData.filter((e)=>e.cefr === level);
+        selectedEntry = matchingEntries[Math.floor(Math.random() * matchingEntries.length)];
+    }
+    return {
+        english: selectedWord,
+        hungarian: selectedEntry.meanings,
+        pos: selectedEntry.pos,
+        cefr: selectedEntry.cefr,
+        source: "cefr_dictionary"
+    };
+}
+async function getTotalWordsCount() {
+    const dict = await loadDictionary();
+    const level = getCurrentCEFRLevel();
+    if (!dict) return 0;
+    const availableWords = filterWordsByLevel(dict, level);
+    return availableWords.length;
+}
+function getCEFRWordCount(level = CEFR_LEVELS.ALL) {
+    // Becslés ha még nincs betöltve
+    if (!dictionary) {
+        if (level === CEFR_LEVELS.ALL) return 7035;
+        // Becsült százalékok szintenként
+        const estimates = {
+            [CEFR_LEVELS.A1]: 1000,
+            [CEFR_LEVELS.A2]: 1200,
+            [CEFR_LEVELS.B1]: 1500,
+            [CEFR_LEVELS.B2]: 1800,
+            [CEFR_LEVELS.C1]: 1000,
+            [CEFR_LEVELS.C2]: 535
+        };
+        return estimates[level] || 1000;
+    }
+    const availableWords = filterWordsByLevel(dictionary, level);
+    return availableWords.length;
+}
+async function lookupWord(word) {
+    const dict = await loadDictionary();
+    const normalizedWord = word.toLowerCase().trim();
+    if (dict[normalizedWord]) {
         return {
-            ...wordData,
-            hungarian: cached.hungarian,
-            synonyms: cached.synonyms || [],
-            cached: true
+            found: true,
+            word: normalizedWord,
+            entries: dict[normalizedWord]
         };
     }
-    const response = await fetch(`/api/translate?word=${encodeURIComponent(wordData.english)}`);
-    if (!response.ok) {
-        throw new Error("Fordítási API hiba");
-    }
-    const translationData = await response.json();
-    const result = {
-        ...wordData,
-        hungarian: translationData.translation,
-        synonyms: translationData.synonyms,
-        cached: false
+    return {
+        found: false,
+        word: normalizedWord,
+        entries: []
     };
-    setCachedTranslation(wordData.english, {
-        hungarian: result.hungarian,
-        synonyms: result.synonyms
+}
+async function getStatsByLevel() {
+    const dict = await loadDictionary();
+    if (!dict) return {};
+    const stats = {};
+    Object.values(CEFR_LEVELS).forEach((level)=>{
+        if (level !== CEFR_LEVELS.ALL) {
+            stats[level] = filterWordsByLevel(dict, level).length;
+        }
     });
-    return result;
-}
-function getTotalWordsCount() {
-    const source = getCurrentSource();
-    const cefrLevel = getCurrentCEFRLevel();
-    const frequencyLevel = getCurrentFrequencyLevel();
-    if (source === WORD_SOURCES.FREQUENCY) {
-        return getFrequencyWordCount(frequencyLevel);
-    } else {
-        return getCEFRWordCount(cefrLevel);
-    }
-}
-function getCachedTranslation(word) {
-    if ("TURBOPACK compile-time truthy", 1) return null;
-    //TURBOPACK unreachable
-    ;
-}
-function setCachedTranslation(word, translationWithSynonyms) {
-    if ("TURBOPACK compile-time truthy", 1) return;
-    //TURBOPACK unreachable
-    ;
+    return stats;
 }
 function clearCache() {
-    if ("TURBOPACK compile-time truthy", 1) return 0;
-    //TURBOPACK unreachable
-    ;
-    let count;
+    // Már nincs cache, de a függvény marad
+    return 0;
 }
 }),
 "[project]/app/stats/page.js [app-ssr] (ecmascript)", ((__turbopack_context__) => {
@@ -407,21 +351,28 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$mat
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Typography$2f$Typography$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Typography$3e$__ = __turbopack_context__.i("[project]/node_modules/@mui/material/esm/Typography/Typography.js [app-ssr] (ecmascript) <export default as Typography>");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Button$2f$Button$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Button$3e$__ = __turbopack_context__.i("[project]/node_modules/@mui/material/esm/Button/Button.js [app-ssr] (ecmascript) <export default as Button>");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Paper$2f$Paper$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Paper$3e$__ = __turbopack_context__.i("[project]/node_modules/@mui/material/esm/Paper/Paper.js [app-ssr] (ecmascript) <export default as Paper>");
-var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$LinearProgress$2f$LinearProgress$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__LinearProgress$3e$__ = __turbopack_context__.i("[project]/node_modules/@mui/material/esm/LinearProgress/LinearProgress.js [app-ssr] (ecmascript) <export default as LinearProgress>");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Chip$2f$Chip$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Chip$3e$__ = __turbopack_context__.i("[project]/node_modules/@mui/material/esm/Chip/Chip.js [app-ssr] (ecmascript) <export default as Chip>");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Divider$2f$Divider$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Divider$3e$__ = __turbopack_context__.i("[project]/node_modules/@mui/material/esm/Divider/Divider.js [app-ssr] (ecmascript) <export default as Divider>");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$IconButton$2f$IconButton$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__IconButton$3e$__ = __turbopack_context__.i("[project]/node_modules/@mui/material/esm/IconButton/IconButton.js [app-ssr] (ecmascript) <export default as IconButton>");
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Grid$2f$Grid$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Grid$3e$__ = __turbopack_context__.i("[project]/node_modules/@mui/material/esm/Grid/Grid.js [app-ssr] (ecmascript) <export default as Grid>");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$icons$2d$material$2f$esm$2f$Home$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/@mui/icons-material/esm/Home.js [app-ssr] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$icons$2d$material$2f$esm$2f$Refresh$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/@mui/icons-material/esm/Refresh.js [app-ssr] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$icons$2d$material$2f$esm$2f$PlayArrow$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/@mui/icons-material/esm/PlayArrow.js [app-ssr] (ecmascript)");
-var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$icons$2d$material$2f$esm$2f$EmojiEvents$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/@mui/icons-material/esm/EmojiEvents.js [app-ssr] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$icons$2d$material$2f$esm$2f$TrendingUp$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/@mui/icons-material/esm/TrendingUp.js [app-ssr] (ecmascript)");
-var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$icons$2d$material$2f$esm$2f$Close$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/@mui/icons-material/esm/Close.js [app-ssr] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$icons$2d$material$2f$esm$2f$LocalFireDepartment$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/@mui/icons-material/esm/LocalFireDepartment.js [app-ssr] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$icons$2d$material$2f$esm$2f$CheckCircle$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/@mui/icons-material/esm/CheckCircle.js [app-ssr] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$icons$2d$material$2f$esm$2f$Cancel$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/@mui/icons-material/esm/Cancel.js [app-ssr] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$icons$2d$material$2f$esm$2f$Visibility$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/@mui/icons-material/esm/Visibility.js [app-ssr] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$client$2f$app$2d$dir$2f$link$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/dist/client/app-dir/link.js [app-ssr] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$navigation$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/node_modules/next/navigation.js [app-ssr] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$utils$2f$progressTracker$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/utils/progressTracker.js [app-ssr] (ecmascript)");
 var __TURBOPACK__imported__module__$5b$project$5d2f$utils$2f$api$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/utils/api.js [app-ssr] (ecmascript)");
+var __TURBOPACK__imported__module__$5b$project$5d2f$components$2f$Toast$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/components/Toast.js [app-ssr] (ecmascript)");
 "use client";
+;
+;
+;
+;
 ;
 ;
 ;
@@ -437,25 +388,37 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$utils$2f$api$2e$js__$5b$app$
 ;
 function Stats() {
     const router = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$navigation$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useRouter"])();
+    const { showToast } = (0, __TURBOPACK__imported__module__$5b$project$5d2f$components$2f$Toast$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useToast"])();
     const [stats, setStats] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])({
         correct: 0,
         incorrect: 0,
         total: 0
     });
     const [progress, setProgress] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])(null);
+    const [streak, setStreak] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])(0);
+    const [canContinue, setCanContinue] = (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useState"])(false);
     (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["useEffect"])(()=>{
-        const sessionStats = (0, __TURBOPACK__imported__module__$5b$project$5d2f$utils$2f$progressTracker$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["getSessionStats"])();
-        setStats(sessionStats);
-        const totalWords = (0, __TURBOPACK__imported__module__$5b$project$5d2f$utils$2f$api$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["getTotalWordsCount"])();
-        const source = (0, __TURBOPACK__imported__module__$5b$project$5d2f$utils$2f$api$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["getCurrentSource"])();
-        const cefrLevel = (0, __TURBOPACK__imported__module__$5b$project$5d2f$utils$2f$api$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["getCurrentCEFRLevel"])();
-        const frequencyLevel = (0, __TURBOPACK__imported__module__$5b$project$5d2f$utils$2f$api$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["getCurrentFrequencyLevel"])();
-        const level = source === __TURBOPACK__imported__module__$5b$project$5d2f$utils$2f$api$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["WORD_SOURCES"].FREQUENCY ? frequencyLevel : cefrLevel;
-        const progressData = (0, __TURBOPACK__imported__module__$5b$project$5d2f$utils$2f$progressTracker$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["calculateProgress"])(totalWords, source, level);
-        setProgress(progressData);
+        const loadStats = async ()=>{
+            const sessionStats = (0, __TURBOPACK__imported__module__$5b$project$5d2f$utils$2f$progressTracker$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["getSessionStats"])();
+            setStats(sessionStats);
+            const totalWords = await (0, __TURBOPACK__imported__module__$5b$project$5d2f$utils$2f$api$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["getTotalWordsCount"])();
+            const level = (0, __TURBOPACK__imported__module__$5b$project$5d2f$utils$2f$api$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["getCurrentCEFRLevel"])();
+            const progressData = (0, __TURBOPACK__imported__module__$5b$project$5d2f$utils$2f$progressTracker$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["calculateProgress"])(totalWords, "cefr_dictionary", level);
+            setProgress(progressData);
+            const currentStreak = (0, __TURBOPACK__imported__module__$5b$project$5d2f$utils$2f$progressTracker$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["getStreak"])();
+            setStreak(currentStreak);
+            const gameInProgress = (0, __TURBOPACK__imported__module__$5b$project$5d2f$utils$2f$progressTracker$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["hasGameInProgress"])();
+            setCanContinue(gameInProgress);
+        };
+        loadStats();
     }, []);
     const handleNewGame = ()=>{
         (0, __TURBOPACK__imported__module__$5b$project$5d2f$utils$2f$progressTracker$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["resetSessionStats"])();
+        showToast("🎮 Új játék indul!", "info");
+        router.push("/flashcards");
+    };
+    const handleContinue = ()=>{
+        showToast("▶️ Játék folytatva!", "info");
         router.push("/flashcards");
     };
     const handlePracticeUnknown = ()=>{
@@ -468,6 +431,7 @@ function Stats() {
                 ...progress,
                 unknownCount: 0
             });
+            showToast("🗑️ Nem tudott szavak törölve!", "success");
         }
     };
     const accuracy = stats.total > 0 ? (stats.correct / stats.total * 100).toFixed(1) : 0;
@@ -475,27 +439,32 @@ function Stats() {
         if (accuracy >= 90) return {
             text: "Kiváló!",
             color: "success",
-            icon: "🏆"
+            icon: "🏆",
+            emoji: "🎉"
         };
         if (accuracy >= 75) return {
             text: "Nagyon jó!",
             color: "success",
-            icon: "⭐"
+            icon: "⭐",
+            emoji: "👏"
         };
         if (accuracy >= 60) return {
             text: "Jó munka!",
             color: "primary",
-            icon: "👍"
+            icon: "👍",
+            emoji: "💪"
         };
         if (accuracy >= 40) return {
             text: "Gyakorolj még!",
             color: "warning",
-            icon: "💪"
+            icon: "💪",
+            emoji: "📚"
         };
         return {
             text: "Kezdő",
             color: "error",
-            icon: "📚"
+            icon: "📚",
+            emoji: "🌱"
         };
     };
     const performance = getPerformanceLevel();
@@ -522,66 +491,75 @@ function Stats() {
                             href: "/",
                             passHref: true,
                             children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$IconButton$2f$IconButton$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__IconButton$3e$__["IconButton"], {
-                                color: "primary",
+                                sx: {
+                                    background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                                    color: "white",
+                                    "&:hover": {
+                                        background: "linear-gradient(135deg, #5568d3 0%, #6a4193 100%)",
+                                        transform: "scale(1.1)"
+                                    },
+                                    transition: "all 0.3s ease"
+                                },
                                 children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$icons$2d$material$2f$esm$2f$Home$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["default"], {}, void 0, false, {
                                     fileName: "[project]/app/stats/page.js",
-                                    lineNumber: 119,
+                                    lineNumber: 156,
                                     columnNumber: 15
                                 }, this)
                             }, void 0, false, {
                                 fileName: "[project]/app/stats/page.js",
-                                lineNumber: 118,
+                                lineNumber: 144,
                                 columnNumber: 13
                             }, this)
                         }, void 0, false, {
                             fileName: "[project]/app/stats/page.js",
-                            lineNumber: 117,
+                            lineNumber: 143,
                             columnNumber: 11
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Typography$2f$Typography$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Typography$3e$__["Typography"], {
-                            variant: "h5",
+                            variant: "h4",
                             fontWeight: "bold",
                             children: "📊 Statisztika"
                         }, void 0, false, {
                             fileName: "[project]/app/stats/page.js",
-                            lineNumber: 123,
+                            lineNumber: 160,
                             columnNumber: 11
                         }, this),
-                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$IconButton$2f$IconButton$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__IconButton$3e$__["IconButton"], {
-                            onClick: ()=>router.push("/flashcards"),
-                            children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$icons$2d$material$2f$esm$2f$Close$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["default"], {}, void 0, false, {
-                                fileName: "[project]/app/stats/page.js",
-                                lineNumber: 128,
-                                columnNumber: 13
-                            }, this)
+                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Box$2f$Box$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Box$3e$__["Box"], {
+                            sx: {
+                                width: 48
+                            }
                         }, void 0, false, {
                             fileName: "[project]/app/stats/page.js",
-                            lineNumber: 127,
+                            lineNumber: 164,
                             columnNumber: 11
                         }, this)
                     ]
                 }, void 0, true, {
                     fileName: "[project]/app/stats/page.js",
-                    lineNumber: 109,
+                    lineNumber: 135,
                     columnNumber: 9
                 }, this),
                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Paper$2f$Paper$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Paper$3e$__["Paper"], {
-                    elevation: 6,
+                    elevation: 8,
+                    className: "stat-card fade-in",
                     sx: {
                         p: 4,
                         mb: 3,
-                        textAlign: "center"
+                        textAlign: "center",
+                        background: "linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%)",
+                        borderRadius: 4
                     },
                     children: [
-                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$icons$2d$material$2f$esm$2f$EmojiEvents$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["default"], {
+                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Box$2f$Box$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Box$3e$__["Box"], {
                             sx: {
-                                fontSize: 80,
-                                color: performance.color + ".main",
+                                fontSize: "80px",
                                 mb: 2
-                            }
+                            },
+                            className: "bounce",
+                            children: performance.emoji
                         }, void 0, false, {
                             fileName: "[project]/app/stats/page.js",
-                            lineNumber: 134,
+                            lineNumber: 180,
                             columnNumber: 11
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Typography$2f$Typography$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Typography$3e$__["Typography"], {
@@ -595,11 +573,11 @@ function Stats() {
                             ]
                         }, void 0, true, {
                             fileName: "[project]/app/stats/page.js",
-                            lineNumber: 138,
+                            lineNumber: 184,
                             columnNumber: 11
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Typography$2f$Typography$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Typography$3e$__["Typography"], {
-                            variant: "h5",
+                            variant: "h4",
                             color: "text.secondary",
                             paragraph: true,
                             children: [
@@ -608,7 +586,7 @@ function Stats() {
                             ]
                         }, void 0, true, {
                             fileName: "[project]/app/stats/page.js",
-                            lineNumber: 142,
+                            lineNumber: 188,
                             columnNumber: 11
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Box$2f$Box$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Box$3e$__["Box"], {
@@ -616,79 +594,182 @@ function Stats() {
                                 display: "flex",
                                 gap: 2,
                                 justifyContent: "center",
-                                mb: 3
+                                mb: 3,
+                                flexWrap: "wrap"
                             },
                             children: [
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Chip$2f$Chip$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Chip$3e$__["Chip"], {
-                                    label: `✅ Tudott: ${stats.correct}`,
-                                    color: "success",
-                                    size: "large"
+                                    icon: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$icons$2d$material$2f$esm$2f$CheckCircle$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["default"], {}, void 0, false, {
+                                        fileName: "[project]/app/stats/page.js",
+                                        lineNumber: 202,
+                                        columnNumber: 21
+                                    }, void 0),
+                                    label: `Tudott: ${stats.correct}`,
+                                    className: "badge-success",
+                                    size: "large",
+                                    sx: {
+                                        fontSize: "1rem",
+                                        fontWeight: "bold",
+                                        px: 2,
+                                        py: 3
+                                    }
                                 }, void 0, false, {
                                     fileName: "[project]/app/stats/page.js",
-                                    lineNumber: 149,
+                                    lineNumber: 201,
                                     columnNumber: 13
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Chip$2f$Chip$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Chip$3e$__["Chip"], {
-                                    label: `❌ Nem tudott: ${stats.incorrect}`,
-                                    color: "error",
-                                    size: "large"
+                                    icon: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$icons$2d$material$2f$esm$2f$Cancel$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["default"], {}, void 0, false, {
+                                        fileName: "[project]/app/stats/page.js",
+                                        lineNumber: 209,
+                                        columnNumber: 21
+                                    }, void 0),
+                                    label: `Nem tudott: ${stats.incorrect}`,
+                                    className: "badge-error",
+                                    size: "large",
+                                    sx: {
+                                        fontSize: "1rem",
+                                        fontWeight: "bold",
+                                        px: 2,
+                                        py: 3
+                                    }
                                 }, void 0, false, {
                                     fileName: "[project]/app/stats/page.js",
-                                    lineNumber: 154,
+                                    lineNumber: 208,
                                     columnNumber: 13
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/app/stats/page.js",
-                            lineNumber: 146,
+                            lineNumber: 192,
                             columnNumber: 11
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Typography$2f$Typography$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Typography$3e$__["Typography"], {
-                            variant: "body1",
+                            variant: "h6",
                             color: "text.secondary",
                             children: [
                                 "Összesen: ",
                                 stats.total,
-                                " szó ebben a munkamenetben"
+                                " szó ebben a sessionben"
                             ]
                         }, void 0, true, {
                             fileName: "[project]/app/stats/page.js",
-                            lineNumber: 161,
+                            lineNumber: 217,
                             columnNumber: 11
                         }, this)
                     ]
                 }, void 0, true, {
                     fileName: "[project]/app/stats/page.js",
-                    lineNumber: 133,
+                    lineNumber: 168,
                     columnNumber: 9
+                }, this),
+                streak > 0 && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Paper$2f$Paper$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Paper$3e$__["Paper"], {
+                    elevation: 3,
+                    className: "stat-card slide-up",
+                    sx: {
+                        p: 3,
+                        mb: 3,
+                        background: "linear-gradient(135deg, rgba(246, 173, 85, 0.1) 0%, rgba(237, 137, 54, 0.05) 100%)",
+                        border: "2px solid #f6ad55",
+                        borderRadius: 4
+                    },
+                    children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Box$2f$Box$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Box$3e$__["Box"], {
+                        sx: {
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 2
+                        },
+                        children: [
+                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$icons$2d$material$2f$esm$2f$LocalFireDepartment$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["default"], {
+                                className: "streak-fire",
+                                sx: {
+                                    fontSize: 60,
+                                    color: "#f6ad55"
+                                }
+                            }, void 0, false, {
+                                fileName: "[project]/app/stats/page.js",
+                                lineNumber: 237,
+                                columnNumber: 15
+                            }, this),
+                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Box$2f$Box$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Box$3e$__["Box"], {
+                                children: [
+                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Typography$2f$Typography$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Typography$3e$__["Typography"], {
+                                        variant: "h4",
+                                        fontWeight: "bold",
+                                        children: [
+                                            streak,
+                                            " napos sorozat! 🔥"
+                                        ]
+                                    }, void 0, true, {
+                                        fileName: "[project]/app/stats/page.js",
+                                        lineNumber: 242,
+                                        columnNumber: 17
+                                    }, this),
+                                    /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Typography$2f$Typography$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Typography$3e$__["Typography"], {
+                                        variant: "body1",
+                                        color: "text.secondary",
+                                        children: "Minden nap tanulsz! Így tovább!"
+                                    }, void 0, false, {
+                                        fileName: "[project]/app/stats/page.js",
+                                        lineNumber: 245,
+                                        columnNumber: 17
+                                    }, this)
+                                ]
+                            }, void 0, true, {
+                                fileName: "[project]/app/stats/page.js",
+                                lineNumber: 241,
+                                columnNumber: 15
+                            }, this)
+                        ]
+                    }, void 0, true, {
+                        fileName: "[project]/app/stats/page.js",
+                        lineNumber: 236,
+                        columnNumber: 13
+                    }, this)
+                }, void 0, false, {
+                    fileName: "[project]/app/stats/page.js",
+                    lineNumber: 224,
+                    columnNumber: 11
                 }, this),
                 progress && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Paper$2f$Paper$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Paper$3e$__["Paper"], {
                     elevation: 3,
+                    className: "stat-card slide-up",
                     sx: {
                         p: 3,
-                        mb: 3
+                        mb: 3,
+                        borderRadius: 4
                     },
                     children: [
-                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Typography$2f$Typography$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Typography$3e$__["Typography"], {
-                            variant: "h6",
-                            fontWeight: "bold",
-                            gutterBottom: true,
+                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Box$2f$Box$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Box$3e$__["Box"], {
+                            sx: {
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 1,
+                                mb: 2
+                            },
                             children: [
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$icons$2d$material$2f$esm$2f$TrendingUp$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["default"], {
                                     sx: {
-                                        mr: 1,
-                                        verticalAlign: "middle"
+                                        color: "primary.main"
                                     }
                                 }, void 0, false, {
                                     fileName: "[project]/app/stats/page.js",
-                                    lineNumber: 170,
+                                    lineNumber: 261,
                                     columnNumber: 15
                                 }, this),
-                                "Összes haladás"
+                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Typography$2f$Typography$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Typography$3e$__["Typography"], {
+                                    variant: "h6",
+                                    fontWeight: "bold",
+                                    children: "Összes haladás"
+                                }, void 0, false, {
+                                    fileName: "[project]/app/stats/page.js",
+                                    lineNumber: 262,
+                                    columnNumber: 15
+                                }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/app/stats/page.js",
-                            lineNumber: 169,
+                            lineNumber: 260,
                             columnNumber: 13
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Box$2f$Box$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Box$3e$__["Box"], {
@@ -709,7 +790,7 @@ function Stats() {
                                             children: "Tudott szavak"
                                         }, void 0, false, {
                                             fileName: "[project]/app/stats/page.js",
-                                            lineNumber: 182,
+                                            lineNumber: 275,
                                             columnNumber: 17
                                         }, this),
                                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Typography$2f$Typography$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Typography$3e$__["Typography"], {
@@ -722,25 +803,30 @@ function Stats() {
                                             ]
                                         }, void 0, true, {
                                             fileName: "[project]/app/stats/page.js",
-                                            lineNumber: 185,
+                                            lineNumber: 278,
                                             columnNumber: 17
                                         }, this)
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/app/stats/page.js",
-                                    lineNumber: 175,
+                                    lineNumber: 268,
                                     columnNumber: 15
                                 }, this),
-                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$LinearProgress$2f$LinearProgress$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__LinearProgress$3e$__["LinearProgress"], {
-                                    variant: "determinate",
-                                    value: parseFloat(progress.percentage),
-                                    sx: {
-                                        height: 10,
-                                        borderRadius: 5
-                                    }
+                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Box$2f$Box$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Box$3e$__["Box"], {
+                                    className: "progress-bar",
+                                    children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Box$2f$Box$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Box$3e$__["Box"], {
+                                        className: "progress-bar-fill",
+                                        sx: {
+                                            width: `${progress.percentage}%`
+                                        }
+                                    }, void 0, false, {
+                                        fileName: "[project]/app/stats/page.js",
+                                        lineNumber: 283,
+                                        columnNumber: 17
+                                    }, this)
                                 }, void 0, false, {
                                     fileName: "[project]/app/stats/page.js",
-                                    lineNumber: 189,
+                                    lineNumber: 282,
                                     columnNumber: 15
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Typography$2f$Typography$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Typography$3e$__["Typography"], {
@@ -756,13 +842,13 @@ function Stats() {
                                     ]
                                 }, void 0, true, {
                                     fileName: "[project]/app/stats/page.js",
-                                    lineNumber: 194,
+                                    lineNumber: 290,
                                     columnNumber: 15
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/app/stats/page.js",
-                            lineNumber: 174,
+                            lineNumber: 267,
                             columnNumber: 13
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Divider$2f$Divider$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Divider$3e$__["Divider"], {
@@ -771,58 +857,178 @@ function Stats() {
                             }
                         }, void 0, false, {
                             fileName: "[project]/app/stats/page.js",
-                            lineNumber: 203,
+                            lineNumber: 299,
                             columnNumber: 13
                         }, this),
-                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Box$2f$Box$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Box$3e$__["Box"], {
-                            sx: {
-                                display: "flex",
-                                gap: 2,
-                                flexWrap: "wrap"
-                            },
+                        /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Grid$2f$Grid$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Grid$3e$__["Grid"], {
+                            container: true,
+                            spacing: 2,
                             children: [
-                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Chip$2f$Chip$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Chip$3e$__["Chip"], {
-                                    label: `✅ Tudott: ${progress.knownCount}`,
-                                    color: "success"
+                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Grid$2f$Grid$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Grid$3e$__["Grid"], {
+                                    item: true,
+                                    xs: 4,
+                                    children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Box$2f$Box$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Box$3e$__["Box"], {
+                                        sx: {
+                                            textAlign: "center"
+                                        },
+                                        children: [
+                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$icons$2d$material$2f$esm$2f$CheckCircle$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["default"], {
+                                                sx: {
+                                                    color: "success.main",
+                                                    fontSize: 32,
+                                                    mb: 0.5
+                                                }
+                                            }, void 0, false, {
+                                                fileName: "[project]/app/stats/page.js",
+                                                lineNumber: 304,
+                                                columnNumber: 19
+                                            }, this),
+                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Typography$2f$Typography$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Typography$3e$__["Typography"], {
+                                                variant: "h5",
+                                                fontWeight: "bold",
+                                                children: progress.knownCount
+                                            }, void 0, false, {
+                                                fileName: "[project]/app/stats/page.js",
+                                                lineNumber: 307,
+                                                columnNumber: 19
+                                            }, this),
+                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Typography$2f$Typography$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Typography$3e$__["Typography"], {
+                                                variant: "caption",
+                                                color: "text.secondary",
+                                                children: "Tudott"
+                                            }, void 0, false, {
+                                                fileName: "[project]/app/stats/page.js",
+                                                lineNumber: 310,
+                                                columnNumber: 19
+                                            }, this)
+                                        ]
+                                    }, void 0, true, {
+                                        fileName: "[project]/app/stats/page.js",
+                                        lineNumber: 303,
+                                        columnNumber: 17
+                                    }, this)
                                 }, void 0, false, {
                                     fileName: "[project]/app/stats/page.js",
-                                    lineNumber: 206,
+                                    lineNumber: 302,
                                     columnNumber: 15
                                 }, this),
-                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Chip$2f$Chip$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Chip$3e$__["Chip"], {
-                                    label: `❌ Nem tudott: ${progress.unknownCount}`,
-                                    color: "error"
+                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Grid$2f$Grid$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Grid$3e$__["Grid"], {
+                                    item: true,
+                                    xs: 4,
+                                    children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Box$2f$Box$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Box$3e$__["Box"], {
+                                        sx: {
+                                            textAlign: "center"
+                                        },
+                                        children: [
+                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$icons$2d$material$2f$esm$2f$Cancel$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["default"], {
+                                                sx: {
+                                                    color: "error.main",
+                                                    fontSize: 32,
+                                                    mb: 0.5
+                                                }
+                                            }, void 0, false, {
+                                                fileName: "[project]/app/stats/page.js",
+                                                lineNumber: 317,
+                                                columnNumber: 19
+                                            }, this),
+                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Typography$2f$Typography$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Typography$3e$__["Typography"], {
+                                                variant: "h5",
+                                                fontWeight: "bold",
+                                                children: progress.unknownCount
+                                            }, void 0, false, {
+                                                fileName: "[project]/app/stats/page.js",
+                                                lineNumber: 318,
+                                                columnNumber: 19
+                                            }, this),
+                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Typography$2f$Typography$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Typography$3e$__["Typography"], {
+                                                variant: "caption",
+                                                color: "text.secondary",
+                                                children: "Nem tudott"
+                                            }, void 0, false, {
+                                                fileName: "[project]/app/stats/page.js",
+                                                lineNumber: 321,
+                                                columnNumber: 19
+                                            }, this)
+                                        ]
+                                    }, void 0, true, {
+                                        fileName: "[project]/app/stats/page.js",
+                                        lineNumber: 316,
+                                        columnNumber: 17
+                                    }, this)
                                 }, void 0, false, {
                                     fileName: "[project]/app/stats/page.js",
-                                    lineNumber: 210,
+                                    lineNumber: 315,
                                     columnNumber: 15
                                 }, this),
-                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Chip$2f$Chip$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Chip$3e$__["Chip"], {
-                                    label: `📝 Átnézett: ${progress.reviewedCount}`,
-                                    color: "primary"
+                                /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Grid$2f$Grid$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Grid$3e$__["Grid"], {
+                                    item: true,
+                                    xs: 4,
+                                    children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Box$2f$Box$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Box$3e$__["Box"], {
+                                        sx: {
+                                            textAlign: "center"
+                                        },
+                                        children: [
+                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$icons$2d$material$2f$esm$2f$Visibility$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["default"], {
+                                                sx: {
+                                                    color: "primary.main",
+                                                    fontSize: 32,
+                                                    mb: 0.5
+                                                }
+                                            }, void 0, false, {
+                                                fileName: "[project]/app/stats/page.js",
+                                                lineNumber: 328,
+                                                columnNumber: 19
+                                            }, this),
+                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Typography$2f$Typography$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Typography$3e$__["Typography"], {
+                                                variant: "h5",
+                                                fontWeight: "bold",
+                                                children: progress.reviewedCount
+                                            }, void 0, false, {
+                                                fileName: "[project]/app/stats/page.js",
+                                                lineNumber: 331,
+                                                columnNumber: 19
+                                            }, this),
+                                            /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Typography$2f$Typography$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Typography$3e$__["Typography"], {
+                                                variant: "caption",
+                                                color: "text.secondary",
+                                                children: "Átnézett"
+                                            }, void 0, false, {
+                                                fileName: "[project]/app/stats/page.js",
+                                                lineNumber: 334,
+                                                columnNumber: 19
+                                            }, this)
+                                        ]
+                                    }, void 0, true, {
+                                        fileName: "[project]/app/stats/page.js",
+                                        lineNumber: 327,
+                                        columnNumber: 17
+                                    }, this)
                                 }, void 0, false, {
                                     fileName: "[project]/app/stats/page.js",
-                                    lineNumber: 214,
+                                    lineNumber: 326,
                                     columnNumber: 15
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/app/stats/page.js",
-                            lineNumber: 205,
+                            lineNumber: 301,
                             columnNumber: 13
                         }, this)
                     ]
                 }, void 0, true, {
                     fileName: "[project]/app/stats/page.js",
-                    lineNumber: 168,
+                    lineNumber: 255,
                     columnNumber: 11
                 }, this),
                 progress && progress.unknownCount > 0 && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Paper$2f$Paper$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Paper$3e$__["Paper"], {
                     elevation: 3,
+                    className: "stat-card slide-up",
                     sx: {
                         p: 3,
                         mb: 3,
-                        bgcolor: "error.light"
+                        background: "linear-gradient(135deg, rgba(245, 101, 101, 0.1) 0%, rgba(229, 62, 62, 0.05) 100%)",
+                        border: "2px solid #f56565",
+                        borderRadius: 4
                     },
                     children: [
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Typography$2f$Typography$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Typography$3e$__["Typography"], {
@@ -832,7 +1038,7 @@ function Stats() {
                             children: "❌ Nem tudott szavak"
                         }, void 0, false, {
                             fileName: "[project]/app/stats/page.js",
-                            lineNumber: 225,
+                            lineNumber: 357,
                             columnNumber: 13
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Typography$2f$Typography$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Typography$3e$__["Typography"], {
@@ -844,7 +1050,7 @@ function Stats() {
                             ]
                         }, void 0, true, {
                             fileName: "[project]/app/stats/page.js",
-                            lineNumber: 228,
+                            lineNumber: 360,
                             columnNumber: 13
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Box$2f$Box$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Box$3e$__["Box"], {
@@ -855,40 +1061,46 @@ function Stats() {
                             children: [
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Button$2f$Button$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Button$3e$__["Button"], {
                                     variant: "contained",
-                                    color: "error",
                                     startIcon: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$icons$2d$material$2f$esm$2f$PlayArrow$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["default"], {}, void 0, false, {
                                         fileName: "[project]/app/stats/page.js",
-                                        lineNumber: 236,
+                                        lineNumber: 367,
                                         columnNumber: 28
                                     }, void 0),
                                     onClick: handlePracticeUnknown,
                                     fullWidth: true,
+                                    className: "btn-error",
+                                    sx: {
+                                        py: 1.5,
+                                        borderRadius: 2
+                                    },
                                     children: "Gyakorlás"
                                 }, void 0, false, {
                                     fileName: "[project]/app/stats/page.js",
-                                    lineNumber: 233,
+                                    lineNumber: 365,
                                     columnNumber: 15
                                 }, this),
                                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Button$2f$Button$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Button$3e$__["Button"], {
                                     variant: "outlined",
-                                    color: "inherit",
                                     onClick: handleClearUnknown,
+                                    sx: {
+                                        borderRadius: 2
+                                    },
                                     children: "Törlés"
                                 }, void 0, false, {
                                     fileName: "[project]/app/stats/page.js",
-                                    lineNumber: 243,
+                                    lineNumber: 376,
                                     columnNumber: 15
                                 }, this)
                             ]
                         }, void 0, true, {
                             fileName: "[project]/app/stats/page.js",
-                            lineNumber: 232,
+                            lineNumber: 364,
                             columnNumber: 13
                         }, this)
                     ]
                 }, void 0, true, {
                     fileName: "[project]/app/stats/page.js",
-                    lineNumber: 224,
+                    lineNumber: 345,
                     columnNumber: 11
                 }, this),
                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Box$2f$Box$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Box$3e$__["Box"], {
@@ -898,23 +1110,52 @@ function Stats() {
                         gap: 2
                     },
                     children: [
+                        canContinue && /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Button$2f$Button$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Button$3e$__["Button"], {
+                            variant: "contained",
+                            size: "large",
+                            startIcon: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$icons$2d$material$2f$esm$2f$PlayArrow$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["default"], {}, void 0, false, {
+                                fileName: "[project]/app/stats/page.js",
+                                lineNumber: 393,
+                                columnNumber: 26
+                            }, void 0),
+                            onClick: handleContinue,
+                            fullWidth: true,
+                            className: "btn-primary glow",
+                            sx: {
+                                py: 2,
+                                fontSize: "1.1rem",
+                                fontWeight: "bold",
+                                borderRadius: 3,
+                                textTransform: "none"
+                            },
+                            children: "▶️ Folytatás"
+                        }, void 0, false, {
+                            fileName: "[project]/app/stats/page.js",
+                            lineNumber: 390,
+                            columnNumber: 13
+                        }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Button$2f$Button$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Button$3e$__["Button"], {
                             variant: "contained",
                             size: "large",
                             startIcon: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$icons$2d$material$2f$esm$2f$Refresh$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["default"], {}, void 0, false, {
                                 fileName: "[project]/app/stats/page.js",
-                                lineNumber: 259,
+                                lineNumber: 412,
                                 columnNumber: 24
                             }, void 0),
                             onClick: handleNewGame,
                             fullWidth: true,
+                            className: "btn-primary",
                             sx: {
-                                py: 1.5
+                                py: 2,
+                                fontSize: "1.1rem",
+                                fontWeight: "bold",
+                                borderRadius: 3,
+                                textTransform: "none"
                             },
-                            children: "Új játék"
+                            children: "🎮 Új játék"
                         }, void 0, false, {
                             fileName: "[project]/app/stats/page.js",
-                            lineNumber: 256,
+                            lineNumber: 409,
                             columnNumber: 11
                         }, this),
                         /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$client$2f$app$2d$dir$2f$link$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["default"], {
@@ -928,28 +1169,36 @@ function Stats() {
                                 size: "large",
                                 startIcon: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$icons$2d$material$2f$esm$2f$Home$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["default"], {}, void 0, false, {
                                     fileName: "[project]/app/stats/page.js",
-                                    lineNumber: 271,
+                                    lineNumber: 431,
                                     columnNumber: 26
                                 }, void 0),
                                 fullWidth: true,
                                 sx: {
-                                    py: 1.5
+                                    py: 2,
+                                    fontSize: "1.1rem",
+                                    fontWeight: "bold",
+                                    borderRadius: 3,
+                                    textTransform: "none",
+                                    borderWidth: 2,
+                                    "&:hover": {
+                                        borderWidth: 2
+                                    }
                                 },
-                                children: "Kezdőlap"
+                                children: "🏠 Kezdőlap"
                             }, void 0, false, {
                                 fileName: "[project]/app/stats/page.js",
-                                lineNumber: 268,
+                                lineNumber: 428,
                                 columnNumber: 13
                             }, this)
                         }, void 0, false, {
                             fileName: "[project]/app/stats/page.js",
-                            lineNumber: 267,
+                            lineNumber: 427,
                             columnNumber: 11
                         }, this)
                     ]
                 }, void 0, true, {
                     fileName: "[project]/app/stats/page.js",
-                    lineNumber: 255,
+                    lineNumber: 388,
                     columnNumber: 9
                 }, this),
                 /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Box$2f$Box$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Box$3e$__["Box"], {
@@ -960,26 +1209,26 @@ function Stats() {
                     children: /*#__PURE__*/ (0, __TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f$next$2f$dist$2f$server$2f$route$2d$modules$2f$app$2d$page$2f$vendored$2f$ssr$2f$react$2d$jsx$2d$dev$2d$runtime$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__["jsxDEV"])(__TURBOPACK__imported__module__$5b$project$5d2f$node_modules$2f40$mui$2f$material$2f$esm$2f$Typography$2f$Typography$2e$js__$5b$app$2d$ssr$5d$__$28$ecmascript$29$__$3c$export__default__as__Typography$3e$__["Typography"], {
                         variant: "caption",
                         color: "text.secondary",
-                        children: "💡 A tudott/nem tudott szavak mentve vannak a böngészőben"
+                        children: "💡 A tudott/nem tudott szavak mentve vannak"
                     }, void 0, false, {
                         fileName: "[project]/app/stats/page.js",
-                        lineNumber: 282,
+                        lineNumber: 452,
                         columnNumber: 11
                     }, this)
                 }, void 0, false, {
                     fileName: "[project]/app/stats/page.js",
-                    lineNumber: 281,
+                    lineNumber: 451,
                     columnNumber: 9
                 }, this)
             ]
         }, void 0, true, {
             fileName: "[project]/app/stats/page.js",
-            lineNumber: 99,
+            lineNumber: 125,
             columnNumber: 7
         }, this)
     }, void 0, false, {
         fileName: "[project]/app/stats/page.js",
-        lineNumber: 98,
+        lineNumber: 124,
         columnNumber: 5
     }, this);
 }

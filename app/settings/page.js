@@ -7,390 +7,213 @@ import {
   Typography,
   Button,
   Paper,
-  Radio,
-  RadioGroup,
-  FormControlLabel,
-  FormControl,
-  FormLabel,
-  IconButton,
+  ToggleButtonGroup,
+  ToggleButton,
   Divider,
   Alert,
-  Chip,
 } from "@mui/material";
 import { ArrowBack, Delete } from "@mui/icons-material";
 import Link from "next/link";
 import {
-  getCurrentSource,
-  setCurrentSource,
   getCurrentCEFRLevel,
   setCurrentCEFRLevel,
-  getCurrentFrequencyLevel,
-  setCurrentFrequencyLevel,
-  clearCache,
-  getFrequencyWordCount,
   getCEFRWordCount,
-  WORD_SOURCES,
   CEFR_LEVELS,
-  FREQUENCY_LEVELS,
 } from "../../utils/api";
+import {
+  clearKnownWords,
+  clearUnknownWords,
+  resetSessionStats,
+  clearGameState,
+} from "../../utils/progressTracker";
+import { useToast } from "../../components/Toast";
 
 export default function Settings() {
-  const [wordSource, setWordSourceState] = useState(WORD_SOURCES.FREQUENCY);
-  const [cefrLevel, setCefrLevelState] = useState(CEFR_LEVELS.ALL);
-  const [frequencyLevel, setFrequencyLevelState] = useState(
-    FREQUENCY_LEVELS.TOP_10K
-  );
-  const [saved, setSaved] = useState(false);
-  const [cacheCleared, setCacheCleared] = useState(false);
+  const { showToast } = useToast();
+  const [cefrLevel, setCEFRLevelState] = useState(CEFR_LEVELS.ALL);
+  const [wordCount, setWordCount] = useState(0);
 
-  // Betöltés
   useEffect(() => {
-    setWordSourceState(getCurrentSource());
-    setCefrLevelState(getCurrentCEFRLevel());
-    setFrequencyLevelState(getCurrentFrequencyLevel());
+    const level = getCurrentCEFRLevel();
+    setCEFRLevelState(level);
+    updateWordCount(level);
   }, []);
 
-  // Mentés
-  const handleSave = () => {
-    setCurrentSource(wordSource);
-    setCurrentCEFRLevel(cefrLevel);
-    setCurrentFrequencyLevel(frequencyLevel);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 3000);
+  const updateWordCount = async (level) => {
+    const count = getCEFRWordCount(level);
+    setWordCount(count);
   };
 
-  // Cache törlése
-  const handleClearCache = () => {
-    const count = clearCache();
-    setCacheCleared(count);
-    setTimeout(() => setCacheCleared(false), 3000);
+  const handleCEFRLevelChange = (event, newLevel) => {
+    if (newLevel !== null) {
+      setCEFRLevelState(newLevel);
+      setCurrentCEFRLevel(newLevel);
+      updateWordCount(newLevel);
+      showToast(`📚 CEFR szint: ${newLevel}`, "success");
+    }
   };
 
-  // Szószámok
-  const frequencyCount = getFrequencyWordCount(frequencyLevel);
-  const cefrCount = getCEFRWordCount(cefrLevel);
+  const handleResetProgress = () => {
+    if (
+      confirm(
+        "Biztosan törölni szeretnéd az ÖSSZES haladásodat?\n\n" +
+          "Ez törli:\n" +
+          "- Tudott szavak\n" +
+          "- Nem tudott szavak\n" +
+          "- Session statisztikák\n" +
+          "- Mentett játékállás"
+      )
+    ) {
+      clearKnownWords();
+      clearUnknownWords();
+      resetSessionStats();
+      clearGameState();
+      showToast("🗑️ Minden adat törölve!", "success");
+    }
+  };
 
   return (
     <Container maxWidth="sm">
-      <Box sx={{ py: 4 }}>
-        {/* Fejléc */}
-        <Box sx={{ display: "flex", alignItems: "center", mb: 3 }}>
-          <Link href="/flashcards" passHref>
-            <IconButton color="primary">
-              <ArrowBack />
-            </IconButton>
+      <Box
+        sx={{
+          minHeight: "100vh",
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "center",
+          py: 4,
+        }}
+      >
+        {/* Header */}
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            gap: 2,
+            mb: 4,
+          }}
+        >
+          <Link href="/" passHref>
+            <Button
+              variant="contained"
+              startIcon={<ArrowBack />}
+              className="btn-primary"
+              sx={{
+                borderRadius: 2,
+              }}
+            >
+              Vissza
+            </Button>
           </Link>
-          <Typography variant="h4" fontWeight="bold" sx={{ ml: 2 }}>
+
+          <Typography variant="h4" fontWeight="bold">
             ⚙️ Beállítások
           </Typography>
         </Box>
 
-        {/* Sikeres mentés */}
-        {saved && (
-          <Alert severity="success" sx={{ mb: 3 }}>
-            ✅ Beállítások mentve! Következő szónál életbe lép.
-          </Alert>
-        )}
-
-        {/* Cache törölve */}
-        {cacheCleared !== false && (
-          <Alert severity="info" sx={{ mb: 3 }}>
-            🗑️ {cacheCleared} cache bejegyzés törölve!
-          </Alert>
-        )}
-
-        {/* Szóforrás választás */}
-        <Paper sx={{ p: 3, mb: 3 }}>
-          <FormControl component="fieldset" fullWidth>
-            <FormLabel component="legend" sx={{ mb: 2, fontWeight: "bold" }}>
-              📚 Szóforrás választás
-            </FormLabel>
-
-            <RadioGroup
-              value={wordSource}
-              onChange={(e) => setWordSourceState(e.target.value)}
-            >
-              {/* Frequency opció */}
-              <Paper
-                elevation={wordSource === WORD_SOURCES.FREQUENCY ? 3 : 0}
-                sx={{
-                  p: 2,
-                  mb: 2,
-                  border:
-                    wordSource === WORD_SOURCES.FREQUENCY
-                      ? "2px solid"
-                      : "1px solid",
-                  borderColor:
-                    wordSource === WORD_SOURCES.FREQUENCY
-                      ? "primary.main"
-                      : "divider",
-                  cursor: "pointer",
-                }}
-                onClick={() => setWordSourceState(WORD_SOURCES.FREQUENCY)}
-              >
-                <FormControlLabel
-                  value={WORD_SOURCES.FREQUENCY}
-                  control={<Radio />}
-                  label={
-                    <Box>
-                      <Typography variant="h6" fontWeight="bold">
-                        📊 Frequency List (CSV)
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        ~172k angol szó gyakoriság szerint rendezve
-                      </Typography>
-                      <Box sx={{ mt: 1 }}>
-                        <Chip
-                          label="Gyakori szavak"
-                          size="small"
-                          color="success"
-                          sx={{ mr: 1 }}
-                        />
-                        <Chip
-                          label="Legtöbb szó"
-                          size="small"
-                          color="primary"
-                        />
-                      </Box>
-                    </Box>
-                  }
-                  sx={{ width: "100%", m: 0 }}
-                />
-              </Paper>
-
-              {/* CEFR opció */}
-              <Paper
-                elevation={wordSource === WORD_SOURCES.CEFR ? 3 : 0}
-                sx={{
-                  p: 2,
-                  border:
-                    wordSource === WORD_SOURCES.CEFR
-                      ? "2px solid"
-                      : "1px solid",
-                  borderColor:
-                    wordSource === WORD_SOURCES.CEFR
-                      ? "primary.main"
-                      : "divider",
-                  cursor: "pointer",
-                }}
-                onClick={() => setWordSourceState(WORD_SOURCES.CEFR)}
-              >
-                <FormControlLabel
-                  value={WORD_SOURCES.CEFR}
-                  control={<Radio />}
-                  label={
-                    <Box>
-                      <Typography variant="h6" fontWeight="bold">
-                        🎓 CEFR (CSV)
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        ~8k szó CEFR szintekkel (A1-C2)
-                      </Typography>
-                      <Box sx={{ mt: 1 }}>
-                        <Chip
-                          label="Nehézségi szintek"
-                          size="small"
-                          color="secondary"
-                          sx={{ mr: 1 }}
-                        />
-                        <Chip label="Strukturált" size="small" color="info" />
-                      </Box>
-                    </Box>
-                  }
-                  sx={{ width: "100%", m: 0 }}
-                />
-              </Paper>
-            </RadioGroup>
-          </FormControl>
-        </Paper>
-
-        {/* Frequency szint választás (csak ha Frequency aktív) */}
-        {wordSource === WORD_SOURCES.FREQUENCY && (
-          <Paper sx={{ p: 3, mb: 3 }}>
-            <FormControl component="fieldset" fullWidth>
-              <FormLabel component="legend" sx={{ mb: 2, fontWeight: "bold" }}>
-                🎯 Gyakoriság szerinti szint
-              </FormLabel>
-
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                Minél kisebb a szám, annál gyakoribbak (könnyebbek) a szavak.
-              </Typography>
-
-              <RadioGroup
-                value={frequencyLevel}
-                onChange={(e) => setFrequencyLevelState(e.target.value)}
-              >
-                <FormControlLabel
-                  value={FREQUENCY_LEVELS.TOP_1K}
-                  control={<Radio />}
-                  label={
-                    <Box>
-                      <Typography fontWeight="bold">
-                        🌟 Top 1,000 - Alapszavak
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        Leggyakoribb szavak (the, a, to, in, for...)
-                      </Typography>
-                    </Box>
-                  }
-                />
-
-                <FormControlLabel
-                  value={FREQUENCY_LEVELS.TOP_10K}
-                  control={<Radio />}
-                  label={
-                    <Box>
-                      <Typography fontWeight="bold">
-                        ⭐ Top 10,000 - Mindennapi szavak
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        Napi kommunikációhoz szükséges szavak (ajánlott!)
-                      </Typography>
-                    </Box>
-                  }
-                />
-
-                <FormControlLabel
-                  value={FREQUENCY_LEVELS.TOP_50K}
-                  control={<Radio />}
-                  label={
-                    <Box>
-                      <Typography fontWeight="bold">
-                        💫 Top 50,000 - Haladó szókincs
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        Könyvek, újságok olvasásához
-                      </Typography>
-                    </Box>
-                  }
-                />
-
-                <FormControlLabel
-                  value={FREQUENCY_LEVELS.ALL}
-                  control={<Radio />}
-                  label={
-                    <Box>
-                      <Typography fontWeight="bold">
-                        🚀 Összes (~172k) - Teljes lista
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        Ritka és speciális szavak is (nehéz!)
-                      </Typography>
-                    </Box>
-                  }
-                />
-              </RadioGroup>
-            </FormControl>
-          </Paper>
-        )}
-
-        {/* CEFR szint választás (csak ha CEFR aktív) */}
-        {wordSource === WORD_SOURCES.CEFR && (
-          <Paper sx={{ p: 3, mb: 3 }}>
-            <FormControl component="fieldset" fullWidth>
-              <FormLabel component="legend" sx={{ mb: 2, fontWeight: "bold" }}>
-                🎯 CEFR Nehézségi szint
-              </FormLabel>
-
-              <RadioGroup
-                value={cefrLevel}
-                onChange={(e) => setCefrLevelState(e.target.value)}
-              >
-                <FormControlLabel
-                  value={CEFR_LEVELS.ALL}
-                  control={<Radio />}
-                  label={
-                    <Box>
-                      <Typography fontWeight="bold">Összes szint</Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        ~{cefrCount} szó (A1-C2 vegyesen)
-                      </Typography>
-                    </Box>
-                  }
-                />
-
-                <Divider sx={{ my: 1 }} />
-
-                <FormControlLabel
-                  value={CEFR_LEVELS.A1}
-                  control={<Radio />}
-                  label="A1 - Kezdő (alapszavak)"
-                />
-
-                <FormControlLabel
-                  value={CEFR_LEVELS.A2}
-                  control={<Radio />}
-                  label="A2 - Elemi (alapvető kommunikáció)"
-                />
-
-                <FormControlLabel
-                  value={CEFR_LEVELS.B1}
-                  control={<Radio />}
-                  label="B1 - Középhaladó (önálló nyelvhasználat)"
-                />
-
-                <FormControlLabel
-                  value={CEFR_LEVELS.B2}
-                  control={<Radio />}
-                  label="B2 - Haladó (önálló nyelvhasználat)"
-                />
-
-                <FormControlLabel
-                  value={CEFR_LEVELS.C1}
-                  control={<Radio />}
-                  label="C1 - Felsőfok (rugalmas és hatékony)"
-                />
-
-                <FormControlLabel
-                  value={CEFR_LEVELS.C2}
-                  control={<Radio />}
-                  label="C2 - Anyanyelvi szint"
-                />
-              </RadioGroup>
-            </FormControl>
-          </Paper>
-        )}
-
-        {/* Mentés gomb */}
-        <Button
-          variant="contained"
-          size="large"
-          fullWidth
-          onClick={handleSave}
-          sx={{ mb: 2, py: 1.5, fontSize: "1.1rem", fontWeight: "bold" }}
+        {/* CEFR Level */}
+        <Paper
+          elevation={3}
+          className="stat-card slide-up"
+          sx={{ p: 3, mb: 3, borderRadius: 3 }}
         >
-          💾 Beállítások mentése
-        </Button>
-
-        {/* Cache törlés */}
-        <Paper sx={{ p: 3 }}>
           <Typography variant="h6" fontWeight="bold" gutterBottom>
-            🗑️ Cache kezelés
+            📚 CEFR Szint
           </Typography>
 
           <Typography variant="body2" color="text.secondary" paragraph>
-            A cache-elt fordítások 7 napig tárolódnak. Ha törölöd, újra le kell
-            tölteni őket az API-ból (lassabb lesz).
+            Válaszd ki milyen nehézségű szavakat szeretnél gyakorolni
+          </Typography>
+
+          <ToggleButtonGroup
+            value={cefrLevel}
+            exclusive
+            onChange={handleCEFRLevelChange}
+            fullWidth
+            sx={{
+              mb: 2,
+              "& .MuiToggleButton-root": {
+                py: 1.5,
+                fontWeight: "bold",
+                borderRadius: 2,
+                "&.Mui-selected": {
+                  background:
+                    "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                  color: "white",
+                  "&:hover": {
+                    background:
+                      "linear-gradient(135deg, #5568d3 0%, #6a4193 100%)",
+                  },
+                },
+              },
+            }}
+          >
+            <ToggleButton value={CEFR_LEVELS.ALL}>Mind</ToggleButton>
+            <ToggleButton value={CEFR_LEVELS.A1}>A1</ToggleButton>
+            <ToggleButton value={CEFR_LEVELS.A2}>A2</ToggleButton>
+            <ToggleButton value={CEFR_LEVELS.B1}>B1</ToggleButton>
+            <ToggleButton value={CEFR_LEVELS.B2}>B2</ToggleButton>
+          </ToggleButtonGroup>
+
+          <Alert severity="info" sx={{ borderRadius: 2 }}>
+            <Typography variant="body2">
+              <strong>{wordCount.toLocaleString()}</strong> szó elérhető ezen a
+              szinten
+            </Typography>
+          </Alert>
+
+          <Divider sx={{ my: 2 }} />
+
+          <Typography variant="body2" color="text.secondary">
+            <strong>CEFR Szintek magyarázata:</strong>
+            <br />
+            <strong>A1-A2:</strong> Kezdő (basic words)
+            <br />
+            <strong>B1-B2:</strong> Középhaladó (everyday conversation)
+          </Typography>
+        </Paper>
+
+        {/* Danger Zone */}
+        <Paper
+          elevation={3}
+          className="stat-card slide-up"
+          sx={{
+            p: 3,
+            borderRadius: 3,
+            background:
+              "linear-gradient(135deg, rgba(245, 101, 101, 0.1) 0%, rgba(229, 62, 62, 0.05) 100%)",
+            border: "2px solid #f56565",
+          }}
+        >
+          <Typography variant="h6" fontWeight="bold" gutterBottom color="error">
+            ⚠️ Veszélyzóna
+          </Typography>
+
+          <Typography variant="body2" color="text.secondary" paragraph>
+            Ezek a műveletek visszaállítják az ÖSSZES haladásodat!
           </Typography>
 
           <Button
-            variant="outlined"
+            variant="contained"
             color="error"
-            startIcon={<Delete />}
-            onClick={handleClearCache}
             fullWidth
+            startIcon={<Delete />}
+            onClick={handleResetProgress}
+            sx={{
+              py: 1.5,
+              fontWeight: "bold",
+              borderRadius: 2,
+            }}
           >
-            Cache törlése
+            Minden adat törlése
           </Button>
         </Paper>
 
         {/* Info */}
-        <Alert severity="info" sx={{ mt: 3 }}>
-          <Typography variant="body2">
-            <strong>💡 Ajánlás:</strong> Kezdőknek Top 10k vagy CEFR A1-A2,
-            haladóknak Top 50k vagy CEFR B2-C1.
+        <Box sx={{ mt: 3, textAlign: "center" }}>
+          <Typography variant="caption" color="text.secondary">
+            💡 A beállítások azonnal érvénybe lépnek
           </Typography>
-        </Alert>
+        </Box>
       </Box>
     </Container>
   );

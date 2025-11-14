@@ -10,26 +10,39 @@ __turbopack_context__.s([
     ()=>addUnknownWord,
     "calculateProgress",
     ()=>calculateProgress,
+    "clearGameState",
+    ()=>clearGameState,
     "clearKnownWords",
     ()=>clearKnownWords,
     "clearUnknownWords",
     ()=>clearUnknownWords,
+    "getGameState",
+    ()=>getGameState,
     "getKnownWords",
     ()=>getKnownWords,
     "getSessionStats",
     ()=>getSessionStats,
+    "getStreak",
+    ()=>getStreak,
     "getUnknownWords",
     ()=>getUnknownWords,
+    "hasGameInProgress",
+    ()=>hasGameInProgress,
     "removeUnknownWord",
     ()=>removeUnknownWord,
     "resetSessionStats",
     ()=>resetSessionStats,
+    "saveGameState",
+    ()=>saveGameState,
     "updateSessionStats",
-    ()=>updateSessionStats
+    ()=>updateSessionStats,
+    "updateStreak",
+    ()=>updateStreak
 ]);
 const KNOWN_WORDS_KEY = "knownWords";
 const UNKNOWN_WORDS_KEY = "unknownWords";
 const SESSION_STATS_KEY = "sessionStats";
+const GAME_STATE_KEY = "gameState"; // ÚJ!
 function getKnownWords() {
     if ("TURBOPACK compile-time falsy", 0) //TURBOPACK unreachable
     ;
@@ -45,12 +58,13 @@ function addKnownWord(word) {
     ;
     try {
         const known = getKnownWords();
-        if (!known.includes(word)) {
-            known.push(word);
+        const normalizedWord = word.toLowerCase().trim();
+        if (!known.includes(normalizedWord)) {
+            known.push(normalizedWord);
             localStorage.setItem(KNOWN_WORDS_KEY, JSON.stringify(known));
         }
         // Ha volt unknown-ban, töröljük
-        removeUnknownWord(word);
+        removeUnknownWord(normalizedWord);
     } catch (error) {
         console.error("Hiba a tudott szó mentésekor:", error);
     }
@@ -75,12 +89,13 @@ function addUnknownWord(word) {
     ;
     try {
         const unknown = getUnknownWords();
-        if (!unknown.includes(word)) {
-            unknown.push(word);
+        const normalizedWord = word.toLowerCase().trim();
+        if (!unknown.includes(normalizedWord)) {
+            unknown.push(normalizedWord);
             localStorage.setItem(UNKNOWN_WORDS_KEY, JSON.stringify(unknown));
         }
         // Ha volt known-ban, töröljük
-        removeKnownWord(word);
+        removeKnownWord(normalizedWord);
     } catch (error) {
         console.error("Hiba a nem tudott szó mentésekor:", error);
     }
@@ -90,7 +105,8 @@ function removeUnknownWord(word) {
     ;
     try {
         const unknown = getUnknownWords();
-        const filtered = unknown.filter((w)=>w !== word);
+        const normalizedWord = word.toLowerCase().trim();
+        const filtered = unknown.filter((w)=>w !== normalizedWord);
         localStorage.setItem(UNKNOWN_WORDS_KEY, JSON.stringify(filtered));
     } catch (error) {
         console.error("Hiba a nem tudott szó törlésekor:", error);
@@ -101,7 +117,8 @@ function removeKnownWord(word) {
     ;
     try {
         const known = getKnownWords();
-        const filtered = known.filter((w)=>w !== word);
+        const normalizedWord = word.toLowerCase().trim();
+        const filtered = known.filter((w)=>w !== normalizedWord);
         localStorage.setItem(KNOWN_WORDS_KEY, JSON.stringify(filtered));
     } catch (error) {
         console.error("Hiba a tudott szó törlésekor:", error);
@@ -155,6 +172,46 @@ function resetSessionStats() {
         total: 0
     }));
 }
+function saveGameState(state) {
+    if ("TURBOPACK compile-time falsy", 0) //TURBOPACK unreachable
+    ;
+    try {
+        const gameState = {
+            ...state,
+            timestamp: Date.now()
+        };
+        localStorage.setItem(GAME_STATE_KEY, JSON.stringify(gameState));
+    } catch (error) {
+        console.error("Hiba a játékállás mentésekor:", error);
+    }
+}
+function getGameState() {
+    if ("TURBOPACK compile-time falsy", 0) //TURBOPACK unreachable
+    ;
+    try {
+        const data = localStorage.getItem(GAME_STATE_KEY);
+        if (!data) return null;
+        const state = JSON.parse(data);
+        // Ellenőrizzük hogy nem túl régi-e (24 óra)
+        const age = Date.now() - state.timestamp;
+        if (age > 24 * 60 * 60 * 1000) {
+            clearGameState();
+            return null;
+        }
+        return state;
+    } catch  {
+        return null;
+    }
+}
+function clearGameState() {
+    if ("TURBOPACK compile-time falsy", 0) //TURBOPACK unreachable
+    ;
+    localStorage.removeItem(GAME_STATE_KEY);
+}
+function hasGameInProgress() {
+    const state = getGameState();
+    return state !== null;
+}
 function calculateProgress(totalWords, source, level) {
     const knownWords = getKnownWords();
     const unknownWords = getUnknownWords();
@@ -171,6 +228,71 @@ function calculateProgress(totalWords, source, level) {
         source,
         level
     };
+}
+// ====================================
+// 🆕 STREAK TRACKING
+// ====================================
+const STREAK_KEY = "dailyStreak";
+function updateStreak() {
+    if ("TURBOPACK compile-time falsy", 0) //TURBOPACK unreachable
+    ;
+    try {
+        const today = new Date().toDateString();
+        const streakData = localStorage.getItem(STREAK_KEY);
+        if (!streakData) {
+            // Első alkalom
+            localStorage.setItem(STREAK_KEY, JSON.stringify({
+                count: 1,
+                lastDate: today
+            }));
+            return 1;
+        }
+        const { count, lastDate } = JSON.parse(streakData);
+        if (lastDate === today) {
+            // Ma már játszott
+            return count;
+        }
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        if (lastDate === yesterday.toDateString()) {
+            // Folytatódik a streak
+            const newCount = count + 1;
+            localStorage.setItem(STREAK_KEY, JSON.stringify({
+                count: newCount,
+                lastDate: today
+            }));
+            return newCount;
+        }
+        // Megszakadt a streak
+        localStorage.setItem(STREAK_KEY, JSON.stringify({
+            count: 1,
+            lastDate: today
+        }));
+        return 1;
+    } catch (error) {
+        console.error("Streak frissítési hiba:", error);
+        return 0;
+    }
+}
+function getStreak() {
+    if ("TURBOPACK compile-time falsy", 0) //TURBOPACK unreachable
+    ;
+    try {
+        const streakData = localStorage.getItem(STREAK_KEY);
+        if (!streakData) return 0;
+        const { count, lastDate } = JSON.parse(streakData);
+        const today = new Date().toDateString();
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        // Ha ma vagy tegnap volt, érvényes
+        if (lastDate === today || lastDate === yesterday.toDateString()) {
+            return count;
+        }
+        // Megszakadt
+        return 0;
+    } catch  {
+        return 0;
+    }
 }
 if (typeof globalThis.$RefreshHelpers$ === 'object' && globalThis.$RefreshHelpers !== null) {
     __turbopack_context__.k.registerExports(__turbopack_context__.m, globalThis.$RefreshHelpers$);

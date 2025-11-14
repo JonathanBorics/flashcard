@@ -1,6 +1,7 @@
 import { Inter } from "next/font/google";
 import "./globals.css";
 import ThemeRegistry from "../components/ThemeRegistry";
+import { ToastProvider } from "../components/Toast";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -31,7 +32,9 @@ export default function RootLayout({ children }) {
         <link rel="apple-touch-icon" href="/icon-192x192.png" />
       </head>
       <body className={inter.className}>
-        <ThemeRegistry>{children}</ThemeRegistry>
+        <ThemeRegistry>
+          <ToastProvider>{children}</ToastProvider>
+        </ThemeRegistry>
       </body>
     </html>
   );

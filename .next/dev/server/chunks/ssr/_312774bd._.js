@@ -2,59 +2,30 @@ module.exports = [
 "[project]/utils/api.js [app-ssr] (ecmascript)", ((__turbopack_context__) => {
 "use strict";
 
-// Szó források konfigurációja
+// ====================================
+// ÚJ SZÓTÁR RENDSZER - cefr_dictionary.json
+// ====================================
+// CEFR szintek
 __turbopack_context__.s([
     "CEFR_LEVELS",
     ()=>CEFR_LEVELS,
-    "FREQUENCY_LEVELS",
-    ()=>FREQUENCY_LEVELS,
-    "WORD_SOURCES",
-    ()=>WORD_SOURCES,
     "clearCache",
     ()=>clearCache,
     "getCEFRWordCount",
     ()=>getCEFRWordCount,
-    "getCachedTranslation",
-    ()=>getCachedTranslation,
     "getCurrentCEFRLevel",
     ()=>getCurrentCEFRLevel,
-    "getCurrentFrequencyLevel",
-    ()=>getCurrentFrequencyLevel,
-    "getCurrentSource",
-    ()=>getCurrentSource,
-    "getFrequencyWordCount",
-    ()=>getFrequencyWordCount,
-    "getRandomCEFRWord",
-    ()=>getRandomCEFRWord,
-    "getRandomFrequencyWord",
-    ()=>getRandomFrequencyWord,
     "getRandomWord",
     ()=>getRandomWord,
+    "getStatsByLevel",
+    ()=>getStatsByLevel,
     "getTotalWordsCount",
     ()=>getTotalWordsCount,
-    "setCachedTranslation",
-    ()=>setCachedTranslation,
+    "lookupWord",
+    ()=>lookupWord,
     "setCurrentCEFRLevel",
-    ()=>setCurrentCEFRLevel,
-    "setCurrentFrequencyLevel",
-    ()=>setCurrentFrequencyLevel,
-    "setCurrentSource",
-    ()=>setCurrentSource
+    ()=>setCurrentCEFRLevel
 ]);
-const WORD_SOURCES = {
-    FREQUENCY: "frequency",
-    CEFR: "cefr"
-};
-function getCurrentSource() {
-    if ("TURBOPACK compile-time truthy", 1) return WORD_SOURCES.FREQUENCY;
-    //TURBOPACK unreachable
-    ;
-}
-function setCurrentSource(source) {
-    if ("TURBOPACK compile-time truthy", 1) return;
-    //TURBOPACK unreachable
-    ;
-}
 const CEFR_LEVELS = {
     ALL: "all",
     A1: "A1",
@@ -74,197 +45,124 @@ function setCurrentCEFRLevel(level) {
     //TURBOPACK unreachable
     ;
 }
-const FREQUENCY_LEVELS = {
-    TOP_1K: "1000",
-    TOP_10K: "10000",
-    TOP_50K: "50000",
-    ALL: "all"
-};
-function getCurrentFrequencyLevel() {
-    if ("TURBOPACK compile-time truthy", 1) return FREQUENCY_LEVELS.TOP_10K;
-    //TURBOPACK unreachable
-    ;
-}
-function setCurrentFrequencyLevel(level) {
-    if ("TURBOPACK compile-time truthy", 1) return;
-    //TURBOPACK unreachable
-    ;
-}
 // ====================================
-// FREQUENCY CSV FUNCTIONS
+// SZÓTÁR BETÖLTÉS
 // ====================================
-let frequencyData = null;
-async function loadFrequency() {
-    if (frequencyData) return frequencyData;
+let dictionary = null;
+async function loadDictionary() {
+    if (dictionary) return dictionary;
     try {
-        const response = await fetch("/data/valid_words_sorted_by_frequency.csv");
-        const csvText = await response.text();
-        const lines = csvText.split("\n").slice(1);
-        frequencyData = lines.map((line)=>{
-            const parts = line.split(",");
-            if (parts.length < 3) return null;
-            const rank = parseInt(parts[0]?.trim());
-            const word = parts[1]?.trim();
-            const frequency = parseInt(parts[2]?.trim());
-            if (!word || isNaN(rank)) return null;
-            return {
-                rank,
-                word,
-                frequency: frequency || 0
-            };
-        }).filter(Boolean);
-        return frequencyData;
+        const response = await fetch("/data/cefr_dictionary.json");
+        if (!response.ok) throw new Error("Dictionary not found");
+        dictionary = await response.json();
+        console.log(`📚 Szótár betöltve: ${Object.keys(dictionary).length} szó`);
+        return dictionary;
     } catch (error) {
-        return [];
+        console.error("❌ Szótár betöltési hiba:", error);
+        return {};
     }
-}
-async function getRandomFrequencyWord(level = FREQUENCY_LEVELS.TOP_10K) {
-    await loadFrequency();
-    if (!frequencyData || frequencyData.length === 0) throw new Error("Frequency lista nem elérhető");
-    let filteredWords = frequencyData;
-    if (level !== FREQUENCY_LEVELS.ALL) {
-        const maxRank = parseInt(level);
-        filteredWords = frequencyData.filter((item)=>item.rank <= maxRank);
-    }
-    if (filteredWords.length === 0) throw new Error(`Nincs szó a(z) ${level} szinten`);
-    const randomIndex = Math.floor(Math.random() * filteredWords.length);
-    const wordData = filteredWords[randomIndex];
-    return {
-        english: wordData.word,
-        rank: wordData.rank,
-        frequency: wordData.frequency,
-        source: "frequency"
-    };
-}
-function getFrequencyWordCount(level = FREQUENCY_LEVELS.TOP_10K) {
-    if (!frequencyData) {
-        switch(level){
-            case FREQUENCY_LEVELS.TOP_1K:
-                return 1000;
-            case FREQUENCY_LEVELS.TOP_10K:
-                return 10000;
-            case FREQUENCY_LEVELS.TOP_50K:
-                return 50000;
-            case FREQUENCY_LEVELS.ALL:
-                return 172000;
-            default:
-                return 10000;
-        }
-    }
-    if (level === FREQUENCY_LEVELS.ALL) return frequencyData.length;
-    const maxRank = parseInt(level);
-    return frequencyData.filter((item)=>item.rank <= maxRank).length;
 }
 // ====================================
-// CSV CEFR FUNCTIONS
+// SZAVAK SZŰRÉSE CEFR SZERINT
 // ====================================
-let cefrData = null;
-async function loadCEFR() {
-    if (cefrData) return cefrData;
-    try {
-        const response = await fetch("/data/word_list_cefr.csv");
-        const csvText = await response.text();
-        const lines = csvText.split("\n").slice(1);
-        cefrData = lines.map((line)=>{
-            const parts = line.split(";");
-            if (parts.length < 3) return null;
-            return {
-                word: parts[0]?.trim(),
-                pos: parts[1]?.trim(),
-                cefr: parts[2]?.trim()
-            };
-        }).filter((item)=>item && item.word && item.cefr);
-        return cefrData;
-    } catch (error) {
-        return [];
+function filterWordsByLevel(dict, level) {
+    if (level === CEFR_LEVELS.ALL) {
+        return Object.keys(dict);
     }
-}
-async function getRandomCEFRWord(level = CEFR_LEVELS.ALL) {
-    await loadCEFR();
-    if (!cefrData || cefrData.length === 0) throw new Error("CEFR lista nem elérhető");
-    let filteredWords = cefrData;
-    if (level !== CEFR_LEVELS.ALL) {
-        filteredWords = cefrData.filter((item)=>item.cefr === level);
-    }
-    if (filteredWords.length === 0) throw new Error(`Nincs szó a(z) ${level} szinten`);
-    const randomIndex = Math.floor(Math.random() * filteredWords.length);
-    const wordData = filteredWords[randomIndex];
-    return {
-        english: wordData.word,
-        pos: wordData.pos,
-        cefr: wordData.cefr,
-        source: "cefr"
-    };
-}
-function getCEFRWordCount(level = CEFR_LEVELS.ALL) {
-    if (!cefrData) {
-        // Becslés, ha a lista még nincs betöltve
-        return 7989;
-    }
-    if (level === CEFR_LEVELS.ALL) return cefrData.length;
-    return cefrData.filter((item)=>item.cefr === level).length;
+    // Csak azok a szavak, amelyeknek van adott szintű bejegyzése
+    return Object.keys(dict).filter((word)=>{
+        const entries = dict[word];
+        return entries.some((entry)=>entry.cefr === level);
+    });
 }
 async function getRandomWord() {
-    const source = getCurrentSource();
-    const cefrLevel = getCurrentCEFRLevel();
-    const frequencyLevel = getCurrentFrequencyLevel();
-    let wordData;
-    if (source === WORD_SOURCES.FREQUENCY) {
-        wordData = await getRandomFrequencyWord(frequencyLevel);
-    } else {
-        wordData = await getRandomCEFRWord(cefrLevel);
+    const dict = await loadDictionary();
+    const level = getCurrentCEFRLevel();
+    if (!dict || Object.keys(dict).length === 0) {
+        throw new Error("Szótár nem elérhető");
     }
-    const cached = getCachedTranslation(wordData.english);
-    if (cached) {
+    // Szűrés CEFR szint szerint
+    const availableWords = filterWordsByLevel(dict, level);
+    if (availableWords.length === 0) {
+        throw new Error(`Nincs szó a(z) ${level} szinten`);
+    }
+    // Random szó választása
+    const randomIndex = Math.floor(Math.random() * availableWords.length);
+    const selectedWord = availableWords[randomIndex];
+    const wordData = dict[selectedWord];
+    // Ha több bejegyzés van, válasszunk a megfelelő szintből
+    let selectedEntry;
+    if (level === CEFR_LEVELS.ALL) {
+        // Random bejegyzés
+        selectedEntry = wordData[Math.floor(Math.random() * wordData.length)];
+    } else {
+        // Adott szintű bejegyzés
+        const matchingEntries = wordData.filter((e)=>e.cefr === level);
+        selectedEntry = matchingEntries[Math.floor(Math.random() * matchingEntries.length)];
+    }
+    return {
+        english: selectedWord,
+        hungarian: selectedEntry.meanings,
+        pos: selectedEntry.pos,
+        cefr: selectedEntry.cefr,
+        source: "cefr_dictionary"
+    };
+}
+async function getTotalWordsCount() {
+    const dict = await loadDictionary();
+    const level = getCurrentCEFRLevel();
+    if (!dict) return 0;
+    const availableWords = filterWordsByLevel(dict, level);
+    return availableWords.length;
+}
+function getCEFRWordCount(level = CEFR_LEVELS.ALL) {
+    // Becslés ha még nincs betöltve
+    if (!dictionary) {
+        if (level === CEFR_LEVELS.ALL) return 7035;
+        // Becsült százalékok szintenként
+        const estimates = {
+            [CEFR_LEVELS.A1]: 1000,
+            [CEFR_LEVELS.A2]: 1200,
+            [CEFR_LEVELS.B1]: 1500,
+            [CEFR_LEVELS.B2]: 1800,
+            [CEFR_LEVELS.C1]: 1000,
+            [CEFR_LEVELS.C2]: 535
+        };
+        return estimates[level] || 1000;
+    }
+    const availableWords = filterWordsByLevel(dictionary, level);
+    return availableWords.length;
+}
+async function lookupWord(word) {
+    const dict = await loadDictionary();
+    const normalizedWord = word.toLowerCase().trim();
+    if (dict[normalizedWord]) {
         return {
-            ...wordData,
-            hungarian: cached.hungarian,
-            synonyms: cached.synonyms || [],
-            cached: true
+            found: true,
+            word: normalizedWord,
+            entries: dict[normalizedWord]
         };
     }
-    const response = await fetch(`/api/translate?word=${encodeURIComponent(wordData.english)}`);
-    if (!response.ok) {
-        throw new Error("Fordítási API hiba");
-    }
-    const translationData = await response.json();
-    const result = {
-        ...wordData,
-        hungarian: translationData.translation,
-        synonyms: translationData.synonyms,
-        cached: false
+    return {
+        found: false,
+        word: normalizedWord,
+        entries: []
     };
-    setCachedTranslation(wordData.english, {
-        hungarian: result.hungarian,
-        synonyms: result.synonyms
+}
+async function getStatsByLevel() {
+    const dict = await loadDictionary();
+    if (!dict) return {};
+    const stats = {};
+    Object.values(CEFR_LEVELS).forEach((level)=>{
+        if (level !== CEFR_LEVELS.ALL) {
+            stats[level] = filterWordsByLevel(dict, level).length;
+        }
     });
-    return result;
-}
-function getTotalWordsCount() {
-    const source = getCurrentSource();
-    const cefrLevel = getCurrentCEFRLevel();
-    const frequencyLevel = getCurrentFrequencyLevel();
-    if (source === WORD_SOURCES.FREQUENCY) {
-        return getFrequencyWordCount(frequencyLevel);
-    } else {
-        return getCEFRWordCount(cefrLevel);
-    }
-}
-function getCachedTranslation(word) {
-    if ("TURBOPACK compile-time truthy", 1) return null;
-    //TURBOPACK unreachable
-    ;
-}
-function setCachedTranslation(word, translationWithSynonyms) {
-    if ("TURBOPACK compile-time truthy", 1) return;
-    //TURBOPACK unreachable
-    ;
+    return stats;
 }
 function clearCache() {
-    if ("TURBOPACK compile-time truthy", 1) return 0;
-    //TURBOPACK unreachable
-    ;
-    let count;
+    // Már nincs cache, de a függvény marad
+    return 0;
 }
 }),
 "[project]/app/settings/page.js [app-ssr] (ecmascript)", ((__turbopack_context__) => {

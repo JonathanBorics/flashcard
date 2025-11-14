@@ -28,26 +28,39 @@ __turbopack_context__.s([
     ()=>addUnknownWord,
     "calculateProgress",
     ()=>calculateProgress,
+    "clearGameState",
+    ()=>clearGameState,
     "clearKnownWords",
     ()=>clearKnownWords,
     "clearUnknownWords",
     ()=>clearUnknownWords,
+    "getGameState",
+    ()=>getGameState,
     "getKnownWords",
     ()=>getKnownWords,
     "getSessionStats",
     ()=>getSessionStats,
+    "getStreak",
+    ()=>getStreak,
     "getUnknownWords",
     ()=>getUnknownWords,
+    "hasGameInProgress",
+    ()=>hasGameInProgress,
     "removeUnknownWord",
     ()=>removeUnknownWord,
     "resetSessionStats",
     ()=>resetSessionStats,
+    "saveGameState",
+    ()=>saveGameState,
     "updateSessionStats",
-    ()=>updateSessionStats
+    ()=>updateSessionStats,
+    "updateStreak",
+    ()=>updateStreak
 ]);
 const KNOWN_WORDS_KEY = "knownWords";
 const UNKNOWN_WORDS_KEY = "unknownWords";
 const SESSION_STATS_KEY = "sessionStats";
+const GAME_STATE_KEY = "gameState"; // ÚJ!
 function getKnownWords() {
     if ("TURBOPACK compile-time truthy", 1) return [];
     //TURBOPACK unreachable
@@ -107,6 +120,25 @@ function resetSessionStats() {
     //TURBOPACK unreachable
     ;
 }
+function saveGameState(state) {
+    if ("TURBOPACK compile-time truthy", 1) return;
+    //TURBOPACK unreachable
+    ;
+}
+function getGameState() {
+    if ("TURBOPACK compile-time truthy", 1) return null;
+    //TURBOPACK unreachable
+    ;
+}
+function clearGameState() {
+    if ("TURBOPACK compile-time truthy", 1) return;
+    //TURBOPACK unreachable
+    ;
+}
+function hasGameInProgress() {
+    const state = getGameState();
+    return state !== null;
+}
 function calculateProgress(totalWords, source, level) {
     const knownWords = getKnownWords();
     const unknownWords = getUnknownWords();
@@ -123,6 +155,20 @@ function calculateProgress(totalWords, source, level) {
         source,
         level
     };
+}
+// ====================================
+// 🆕 STREAK TRACKING
+// ====================================
+const STREAK_KEY = "dailyStreak";
+function updateStreak() {
+    if ("TURBOPACK compile-time truthy", 1) return;
+    //TURBOPACK unreachable
+    ;
+}
+function getStreak() {
+    if ("TURBOPACK compile-time truthy", 1) return 0;
+    //TURBOPACK unreachable
+    ;
 }
 }),
 "[project]/utils/useSwipe.js [app-ssr] (ecmascript)", ((__turbopack_context__) => {

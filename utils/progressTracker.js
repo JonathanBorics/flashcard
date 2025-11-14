@@ -2,6 +2,7 @@
 const KNOWN_WORDS_KEY = "knownWords";
 const UNKNOWN_WORDS_KEY = "unknownWords";
 const SESSION_STATS_KEY = "sessionStats";
+const GAME_STATE_KEY = "gameState"; // ÚJ!
 
 // ====================================
 // TUDOTT SZAVAK
@@ -20,12 +21,14 @@ export function addKnownWord(word) {
   if (typeof window === "undefined") return;
   try {
     const known = getKnownWords();
-    if (!known.includes(word)) {
-      known.push(word);
+    const normalizedWord = word.toLowerCase().trim();
+
+    if (!known.includes(normalizedWord)) {
+      known.push(normalizedWord);
       localStorage.setItem(KNOWN_WORDS_KEY, JSON.stringify(known));
     }
     // Ha volt unknown-ban, töröljük
-    removeUnknownWord(word);
+    removeUnknownWord(normalizedWord);
   } catch (error) {
     console.error("Hiba a tudott szó mentésekor:", error);
   }
@@ -53,12 +56,14 @@ export function addUnknownWord(word) {
   if (typeof window === "undefined") return;
   try {
     const unknown = getUnknownWords();
-    if (!unknown.includes(word)) {
-      unknown.push(word);
+    const normalizedWord = word.toLowerCase().trim();
+
+    if (!unknown.includes(normalizedWord)) {
+      unknown.push(normalizedWord);
       localStorage.setItem(UNKNOWN_WORDS_KEY, JSON.stringify(unknown));
     }
     // Ha volt known-ban, töröljük
-    removeKnownWord(word);
+    removeKnownWord(normalizedWord);
   } catch (error) {
     console.error("Hiba a nem tudott szó mentésekor:", error);
   }
@@ -68,7 +73,8 @@ export function removeUnknownWord(word) {
   if (typeof window === "undefined") return;
   try {
     const unknown = getUnknownWords();
-    const filtered = unknown.filter((w) => w !== word);
+    const normalizedWord = word.toLowerCase().trim();
+    const filtered = unknown.filter((w) => w !== normalizedWord);
     localStorage.setItem(UNKNOWN_WORDS_KEY, JSON.stringify(filtered));
   } catch (error) {
     console.error("Hiba a nem tudott szó törlésekor:", error);
@@ -79,7 +85,8 @@ function removeKnownWord(word) {
   if (typeof window === "undefined") return;
   try {
     const known = getKnownWords();
-    const filtered = known.filter((w) => w !== word);
+    const normalizedWord = word.toLowerCase().trim();
+    const filtered = known.filter((w) => w !== normalizedWord);
     localStorage.setItem(KNOWN_WORDS_KEY, JSON.stringify(filtered));
   } catch (error) {
     console.error("Hiba a tudott szó törlésekor:", error);
@@ -92,7 +99,7 @@ export function clearUnknownWords() {
 }
 
 // ====================================
-// SESSION STATS
+// SESSION STATS (Nem nullázódik!)
 // ====================================
 export function getSessionStats() {
   if (typeof window === "undefined")
@@ -130,6 +137,53 @@ export function resetSessionStats() {
 }
 
 // ====================================
+// 🆕 GAME STATE MENTÉS
+// ====================================
+export function saveGameState(state) {
+  if (typeof window === "undefined") return;
+  try {
+    const gameState = {
+      ...state,
+      timestamp: Date.now(),
+    };
+    localStorage.setItem(GAME_STATE_KEY, JSON.stringify(gameState));
+  } catch (error) {
+    console.error("Hiba a játékállás mentésekor:", error);
+  }
+}
+
+export function getGameState() {
+  if (typeof window === "undefined") return null;
+  try {
+    const data = localStorage.getItem(GAME_STATE_KEY);
+    if (!data) return null;
+
+    const state = JSON.parse(data);
+
+    // Ellenőrizzük hogy nem túl régi-e (24 óra)
+    const age = Date.now() - state.timestamp;
+    if (age > 24 * 60 * 60 * 1000) {
+      clearGameState();
+      return null;
+    }
+
+    return state;
+  } catch {
+    return null;
+  }
+}
+
+export function clearGameState() {
+  if (typeof window === "undefined") return;
+  localStorage.removeItem(GAME_STATE_KEY);
+}
+
+export function hasGameInProgress() {
+  const state = getGameState();
+  return state !== null;
+}
+
+// ====================================
 // STATISZTIKA SZÁMÍTÁS
 // ====================================
 export function calculateProgress(totalWords, source, level) {
@@ -152,4 +206,90 @@ export function calculateProgress(totalWords, source, level) {
     source,
     level,
   };
+}
+
+// ====================================
+// 🆕 STREAK TRACKING
+// ====================================
+const STREAK_KEY = "dailyStreak";
+
+export function updateStreak() {
+  if (typeof window === "undefined") return;
+
+  try {
+    const today = new Date().toDateString();
+    const streakData = localStorage.getItem(STREAK_KEY);
+
+    if (!streakData) {
+      // Első alkalom
+      localStorage.setItem(
+        STREAK_KEY,
+        JSON.stringify({
+          count: 1,
+          lastDate: today,
+        })
+      );
+      return 1;
+    }
+
+    const { count, lastDate } = JSON.parse(streakData);
+
+    if (lastDate === today) {
+      // Ma már játszott
+      return count;
+    }
+
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    if (lastDate === yesterday.toDateString()) {
+      // Folytatódik a streak
+      const newCount = count + 1;
+      localStorage.setItem(
+        STREAK_KEY,
+        JSON.stringify({
+          count: newCount,
+          lastDate: today,
+        })
+      );
+      return newCount;
+    }
+
+    // Megszakadt a streak
+    localStorage.setItem(
+      STREAK_KEY,
+      JSON.stringify({
+        count: 1,
+        lastDate: today,
+      })
+    );
+    return 1;
+  } catch (error) {
+    console.error("Streak frissítési hiba:", error);
+    return 0;
+  }
+}
+
+export function getStreak() {
+  if (typeof window === "undefined") return 0;
+
+  try {
+    const streakData = localStorage.getItem(STREAK_KEY);
+    if (!streakData) return 0;
+
+    const { count, lastDate } = JSON.parse(streakData);
+    const today = new Date().toDateString();
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    // Ha ma vagy tegnap volt, érvényes
+    if (lastDate === today || lastDate === yesterday.toDateString()) {
+      return count;
+    }
+
+    // Megszakadt
+    return 0;
+  } catch {
+    return 0;
+  }
 }
